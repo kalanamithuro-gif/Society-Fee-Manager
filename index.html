@@ -108,6 +108,7 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:#0f172a;overflow:
 .mochip{padding:4px 2px;border-radius:6px;font-size:.59rem;font-weight:600;text-align:center;}
 .mochip.p{background:#dcfce7;color:#166534;}
 .mochip.u{background:#fee2e2;color:#991b1b;}
+.mochip.x{background:#fef3c7;color:#92400e;}
 .mo-title{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:10px;}
 
 /* CHAT INPUT */
@@ -707,9 +708,14 @@ function buildCard(m){
   const fullCrMos   = due<0 ? Math.floor(creditAmt/fee) : 0;
   const partCrAmt   = due<0 ? creditAmt%fee : 0;
 
-  // Last 12 months chips — show paid months in green, unpaid in red
-  const last12 = allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
-  const chips  = last12.map(mo=>`<div class="mochip ${paid.includes(mo)?'p':'u'}">${moLabel(mo)}</div>`).join('');
+  // Last 12 months chips — 3 states: paid=green, partial=orange, unpaid=red
+  const last12    = allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
+  const partialSet= new Set(getPartialMonths(m).map(p=>p.month));
+  const chips     = last12.map(mo=>{
+    if(paid.includes(mo))      return `<div class="mochip p">${moLabel(mo)}</div>`;
+    if(partialSet.has(mo))     return `<div class="mochip x">${moLabel(mo)}</div>`;
+    return `<div class="mochip u">${moLabel(mo)}</div>`;
+  }).join('');
 
   // Duebox content
   let dueboxClass, dueboxBig, dueboxSm;
@@ -746,7 +752,16 @@ function buildCard(m){
       <div class="pr"><span class="lb">Total Paid 💰</span><span class="vl g">${lkr(totalPaid)}</span></div>
       ${due>0?`<div class="pr"><span class="lb">Balance Due ❌</span><span class="vl r">${lkr(due)}</span></div>`:''}
       ${due<0?`<div class="pr"><span class="lb">Advance Credit 🔼</span><span class="vl g">${lkr(creditAmt)}</span></div>`:''}
-      ${unpaid.length>0?`<div class="pr"><span class="lb">Unpaid Months</span><span class="vl a" style="font-size:.7rem">${unpaid.map(moLabel).join(', ')}</span></div>`:''}
+      ${due===0?`<div class="pr"><span class="lb">Status</span><span class="vl g">✔ Exactly up to date</span></div>`:''}
+      ${(()=>{
+        const partials=getPartialMonths(m).filter(p=>p.month<=NOW);
+        const partialSet=new Set(partials.map(p=>p.month));
+        const fullyUnpaid=unpaid.filter(mo=>!partialSet.has(mo));
+        let rows='';
+        if(partials.length>0) rows+=`<div class="pr"><span class="lb">Partial ⚡</span><span class="vl a" style="font-size:.75rem">${partials.map(p=>moLabel(p.month)+' ('+lkr(p.paid)+' paid, '+lkr(p.remaining)+' left)').join('<br>')}</span></div>`;
+        if(fullyUnpaid.length>0) rows+=`<div class="pr"><span class="lb">Not Paid ❌</span><span class="vl r" style="font-size:.75rem">${fullyUnpaid.map(moLabel).join(', ')}</span></div>`;
+        return rows;
+      })()}
       <div class="duebox ${dueboxClass}">
         <div class="big">${dueboxBig}</div>
         <div class="sm">${dueboxSm}</div>
