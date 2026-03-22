@@ -297,7 +297,7 @@ tr:hover td{background:#fafafa;}
 <!-- ════════ PUBLIC CHAT APP ════════ -->
 <div id="chat-app">
   <div class="topbar">
-    <div class="tb-logo">🏘️</div>
+    <div class="tb-logo" style="background:white;padding:2px;overflow:hidden;"><img id="pub-logo" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div>
     <div class="tb-info">
       <h1 id="pub-title">Kalana Mithuro</h1>
       <p>Society Fee Checker</p>
@@ -335,7 +335,7 @@ tr:hover td{background:#fafafa;}
 <!-- ════════ ADMIN PANEL ════════ -->
 <div id="admin-panel">
   <div class="adm-topbar">
-    <div class="tb-logo">🏘️</div>
+    <div class="tb-logo" style="background:white;padding:2px;overflow:hidden;"><img id="adm-logo" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div>
     <h1 id="adm-title">Admin Panel</h1>
     <div class="adm-tabs" id="adm-tabs">
       <button class="adm-tab on" onclick="switchAdmView('chat')">💬 Bot</button>
@@ -554,9 +554,9 @@ async function loadData(){
 // ── INIT ───────────────────────────────────────
 window.addEventListener('DOMContentLoaded',async()=>{
   // Set logo on all logo images
-  ['pub-logo','adm-logo','bot-logo','modal-logo'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.src=LOGO_SRC;
+  // Set logo on ALL logo images
+  ['pub-logo','adm-logo','bot-logo','modal-logo'].forEach(id=>{ const el=document.getElementById(id); if(!el) return;
+    el.src = LOGO_SRC;
   });
   loading(true);
   try{ await loadData(); }catch(e){console.error(e);}
