@@ -385,8 +385,8 @@ tr:hover td{background:#fafafa;}
 
           <div class="scards">
             <div class="scard b"><div class="sv" id="adm-total">0</div><div class="sl">Members</div></div>
-            <div class="scard g"><div class="sv" id="adm-col">LKR 0</div><div class="sl">Collected</div></div>
-            <div class="scard r"><div class="sv" id="adm-due">LKR 0</div><div class="sl">Pending</div></div>
+            <div class="scard g"><div class="sv" id="adm-col">LKR 0</div><div class="sl">This Month Collected</div></div>
+            <div class="scard r"><div class="sv" id="adm-due">LKR 0</div><div class="sl">Total Pending Dues</div></div>
           </div>
 
           <!-- Add Member -->
@@ -518,20 +518,56 @@ function addMonths(ym,n){
   for(let i=0;i<n;i++) r=nextMonth(r);
   return r;
 }
-function getPaid(mb){return payments.filter(p=>String(p.memberId)===String(mb.id)).map(p=>normMonth(p.month));}
+function getPaid(mb){
+  // Group payments by month and sum amounts
+  const grouped={};
+  payments
+    .filter(p=>String(p.memberId)===String(mb.id))
+    .forEach(p=>{
+      const mo=normMonth(p.month);
+      grouped[mo]=(grouped[mo]||0)+Number(p.amount);
+    });
+  const fee=Number(mb.fee);
+  // Month is "paid" only if total paid >= fee
+  return Object.keys(grouped).filter(mo=>grouped[mo]>=fee);
+}
+function getPartialMonths(mb){
+  // Months where payment exists but < fee (partial)
+  const grouped={};
+  payments
+    .filter(p=>String(p.memberId)===String(mb.id))
+    .forEach(p=>{
+      const mo=normMonth(p.month);
+      grouped[mo]=(grouped[mo]||0)+Number(p.amount);
+    });
+  const fee=Number(mb.fee);
+  return Object.entries(grouped)
+    .filter(([mo,amt])=>amt>0&&amt<fee)
+    .map(([mo,amt])=>({month:mo,paid:amt,remaining:fee-amt}));
+}
+function getPaidAmount(mb,month){
+  return payments
+    .filter(p=>String(p.memberId)===String(mb.id)&&normMonth(p.month)===normMonth(month))
+    .reduce((s,p)=>s+Number(p.amount),0);
+}
 function getUnpaid(mb){return allMonths(normMonth(mb.joined),NOW).filter(m=>!getPaid(mb).includes(m));}
 function calcDue(mb){
-  // positive = owes money, negative = credit (paid ahead)
-  const unpaidCount = getUnpaid(mb).length;
-  const creditCount = getCreditMonths(mb);
-  if(unpaidCount > 0) return unpaidCount * Number(mb.fee);
-  return -creditCount * Number(mb.fee); // credit shown as negative
+  const fee=Number(mb.fee);
+  const unpaid=getUnpaid(mb); // fully unpaid months
+  const partials=getPartialMonths(mb).filter(p=>p.month<=NOW); // partial months up to now
+  const credit=getCreditMonths(mb); // advance months fully paid
+
+  if(unpaid.length>0||partials.length>0){
+    // Total remaining = unpaid months * fee + partial remaining amounts
+    const unpaidAmt=unpaid.filter(m=>m<=NOW).length*fee;
+    const partialAmt=partials.reduce((s,p)=>s+p.remaining,0);
+    return unpaidAmt+partialAmt;
+  }
+  return -credit*fee; // negative = credit
 }
 function getCreditMonths(mb){
-  // how many future months paid beyond NOW
-  return payments
-    .filter(p=>String(p.memberId)===String(mb.id) && normMonth(p.month) > NOW)
-    .length;
+  // fully paid future months beyond NOW
+  return getPaid(mb).filter(mo=>mo>NOW).length;
 }
 function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function lkr(n){return 'LKR '+Number(n).toLocaleString();}
