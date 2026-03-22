@@ -206,7 +206,7 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:#0f172a;overflow:
 .adm-scroll::-webkit-scrollbar{width:3px;}
 
 /* Summary cards */
-.scards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.scards{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
 .scard{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 5px rgba(0,0,0,.06);}
 .scard .sv{font-size:1.25rem;font-weight:700;margin-bottom:3px;}
 .scard .sl{font-size:.65rem;color:var(--muted);}
@@ -385,7 +385,8 @@ tr:hover td{background:#fafafa;}
 
           <div class="scards">
             <div class="scard b"><div class="sv" id="adm-total">0</div><div class="sl">Members</div></div>
-            <div class="scard g"><div class="sv" id="adm-col">LKR 0</div><div class="sl">This Month Collected</div></div>
+            <div class="scard g"><div class="sv" id="adm-col">LKR 0</div><div class="sl">This Month</div></div>
+            <div class="scard g" style="border-left:3px solid #16a34a;"><div class="sv" id="adm-col-all">LKR 0</div><div class="sl">All Time Collected</div></div>
             <div class="scard r"><div class="sv" id="adm-due">LKR 0</div><div class="sl">Total Pending Dues</div></div>
           </div>
 
@@ -560,26 +561,32 @@ function getUnpaidPast(mb){
   return allMonths(normMonth(mb.joined),NOW).filter(m=>!paid.includes(m));
 }
 function calcDue(mb){
-  const fee=Number(mb.fee);
-  const partials=getPartialMonths(mb).filter(p=>p.month<=NOW);
-  const partialMonthSet=new Set(partials.map(p=>p.month));
-  
-  // Fully unpaid = months with NO payment at all (exclude partial months)
-  const fullyUnpaid=getUnpaid(mb).filter(m=>m<=NOW&&!partialMonthSet.has(m));
-  
-  const credit=getCreditMonths(mb);
-
-  if(fullyUnpaid.length>0||partials.length>0){
-    // fully unpaid months × fee  +  remaining amount on partial months
-    const fullyUnpaidAmt = fullyUnpaid.length * fee;
-    const partialAmt     = partials.reduce((s,p)=>s+p.remaining, 0);
-    return fullyUnpaidAmt + partialAmt;
-  }
-  return -credit*fee; // negative = credit (paid ahead)
+  // Simple and accurate:
+  // due = total amount owed until NOW - total amount paid
+  // negative = credit (overpaid)
+  const fee = Number(mb.fee);
+  const monthsUntilNow = allMonths(normMonth(mb.joined), NOW).length;
+  const totalOwed = monthsUntilNow * fee;
+  const totalPaid = payments
+    .filter(p=>String(p.memberId)===String(mb.id))
+    .reduce((s,p)=>s+Number(p.amount), 0);
+  return totalOwed - totalPaid; // positive=owes, negative=credit, 0=exact
+}
+function getCreditAmount(mb){
+  // Total amount paid for ALL months (past + future)
+  const totalPaid = payments
+    .filter(p=>String(p.memberId)===String(mb.id))
+    .reduce((s,p)=>s+Number(p.amount), 0);
+  // Total amount that should have been paid up to NOW
+  const fee = Number(mb.fee);
+  const monthsUntilNow = allMonths(normMonth(mb.joined), NOW).length;
+  const totalDueUntilNow = monthsUntilNow * fee;
+  // Credit = total paid - total due until now (can be negative if underpaid)
+  return totalPaid - totalDueUntilNow;
 }
 function getCreditMonths(mb){
-  // fully paid future months beyond NOW
-  return getPaid(mb).filter(mo=>mo>NOW).length;
+  // kept for display - how many full months of credit
+  return Math.floor(Math.max(0, getCreditAmount(mb)) / Number(mb.fee));
 }
 function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function lkr(n){return 'LKR '+Number(n).toLocaleString();}
@@ -912,8 +919,27 @@ function renderAdmin(){
       <td><div class="tava">${ini(m.name)}</div></td>
       <td><b>${m.name}</b></td><td>${m.mobile}</td><td>${m.nic||'—'}</td>
       <td>${m.house}</td><td>${moLabel(m.joined)}</td>
-      <td class="${due>0?'vl r':'vl g'}">${due>0?lkr(due):'—'}</td>
-      <td><span class="pchip ${due>0?'u':'p'}">${due>0?getUnpaid(m).length+' mo owing':'Paid Up'}</span></td>
+      <td class="${due>0?'vl r':due<0?'vl g':'vl g'}">${
+        due>0?lkr(due):
+        due<0?'🔼 '+lkr(Math.abs(due)):
+        '—'
+      }</td>
+      <td><span class="pchip ${due>0?'u':'p'}">${(()=>{
+        if(due>0){
+          const fee=Number(m.fee);
+          const fullOwing=Math.floor(due/fee);
+          const partial=due%fee;
+          if(fullOwing===0) return '⚡ Partial '+lkr(due)+' left';
+          return fullOwing+(partial>0?'.5':'')+' mo owing';
+        }
+        if(due<0){
+          const fee=Number(m.fee);
+          const fullCredit=Math.floor(Math.abs(due)/fee);
+          const partCredit=Math.abs(due)%fee;
+          return '🔼 '+(fullCredit+(partCredit>0?'.'+Math.round(partCredit/fee*10):'')+' mo credit');
+        }
+        return '✅ Paid Up';
+      })()}</span></td>
       <td><div class="tacts">
         <button class="btn bb" onclick="openEdit('${m.id}')">✏️</button>
         <button class="btn br" onclick="delMember('${m.id}')">🗑️</button>
