@@ -360,7 +360,7 @@ tr:hover td{background:#fafafa;}
               <div class="fr"><label>Full Name</label><input type="text" id="f-name" placeholder="e.g. Kamal Perera"></div>
               <div class="fg2">
                 <div class="fr"><label>Mobile (9 digits, no 0)</label><input type="text" id="f-mobile" placeholder="771234567" maxlength="9"></div>
-                <div class="fr"><label>NIC (9 or 11 digits)</label><input type="text" id="f-nic" placeholder="199012345678" maxlength="12"></div>
+                <div class="fr"><label>NIC (old: 123456789V / new: 199012345678)</label><input type="text" id="f-nic" placeholder="123456789V or 199012345678" maxlength="12"></div>
               </div>
               <div class="fg2">
                 <div class="fr"><label>House / Unit No</label><input type="text" id="f-house" placeholder="A-12"></div>
@@ -435,7 +435,7 @@ tr:hover td{background:#fafafa;}
     <div class="fr"><label>Full Name</label><input type="text" id="e-name"></div>
     <div class="fg2">
       <div class="fr"><label>Mobile (9 digits)</label><input type="text" id="e-mobile" maxlength="9"></div>
-      <div class="fr"><label>NIC (9 or 11 digits)</label><input type="text" id="e-nic" maxlength="12"></div>
+      <div class="fr"><label>NIC (old: 123456789V / new: 12 digits)</label><input type="text" id="e-nic" maxlength="12"></div>
     </div>
     <div class="fg2">
       <div class="fr"><label>House</label><input type="text" id="e-house"></div>
@@ -451,7 +451,7 @@ tr:hover td{background:#fafafa;}
 
 <script>
 // ── CONFIG ─────────────────────────────────────
-const API = 'https://script.google.com/macros/s/AKfycbwxxKDNHJ967bcQfGNsEjtnxEMLT0sSDscC_F2nL1P8HbbNd0_peZ5V3BVCEoy9VLuU/exec';
+const API = 'https://script.google.com/macros/s/AKfycbyvYKoooZ0PeuDZXi0N9jUV9krV8Ukc83ZwIhAw8P7DshOohf1WYMbCKXmN8aQ27_6W/exec';
 const NOW = '2026-03';
 
 // ── STATE ──────────────────────────────────────
@@ -465,12 +465,25 @@ function allMonths(from,to){
   while(y<ty||(y===ty&&m<=tm)){r.push(`${y}-${String(m).padStart(2,'0')}`);m++;if(m>12){m=1;y++;}}
   return r;
 }
-function moLabel(ym){const[y,m]=ym.split('-');return new Date(y,m-1).toLocaleString('default',{month:'short',year:'2-digit'});}
-function getPaid(mb){return payments.filter(p=>String(p.memberId)===String(mb.id)).map(p=>String(p.month));}
-function getUnpaid(mb){return allMonths(mb.joined,NOW).filter(m=>!getPaid(mb).includes(m));}
+function moLabel(ym){
+  const[y,m]=String(ym).substring(0,7).split('-');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[parseInt(m,10)-1]+' '+String(y).slice(2);
+}
+function normMonth(v){return String(v).trim().substring(0,7);}
+function getPaid(mb){return payments.filter(p=>String(p.memberId)===String(mb.id)).map(p=>normMonth(p.month));}
+function getUnpaid(mb){return allMonths(normMonth(mb.joined),NOW).filter(m=>!getPaid(mb).includes(m));}
 function calcDue(mb){return getUnpaid(mb).length*Number(mb.fee);}
 function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function lkr(n){return 'LKR '+Number(n).toLocaleString();}
+function validNIC(nic){
+  const n=nic.trim().toUpperCase();
+  // Old NIC: 9 digits + V or X  (e.g. 123456789V)
+  if(/^\d{9}[VX]$/.test(n)) return true;
+  // New NIC: exactly 12 digits  (e.g. 199012345678)
+  if(/^\d{12}$/.test(n)) return true;
+  return false;
+}
 function curMo(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function loading(on){document.getElementById('loader').classList.toggle('on',on);}
 function toast(msg,type='ok'){
@@ -534,7 +547,7 @@ function addMsgTo(container,type,html,time){
 
 function buildCard(m){
   const due=calcDue(m);
-  const all=allMonths(m.joined,NOW);
+  const all=allMonths(normMonth(m.joined),NOW);
   const paid=getPaid(m);
   const unpaid=getUnpaid(m);
   const last12=allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
@@ -547,7 +560,7 @@ function buildCard(m){
     <div class="pc-bd">
       <div class="pr"><span class="lb">Monthly Fee</span><span class="vl">${lkr(m.fee)}</span></div>
       <div class="pr"><span class="lb">NIC</span><span class="vl">${m.nic||'—'}</span></div>
-      <div class="pr"><span class="lb">Member Since</span><span class="vl">${moLabel(m.joined)}</span></div>
+      <div class="pr"><span class="lb">Member Since</span><span class="vl">${moLabel(normMonth(m.joined))}</span></div>
       <div class="pr"><span class="lb">Total Months</span><span class="vl">${all.length}</span></div>
       <div class="pr"><span class="lb">Paid ✅</span><span class="vl g">${paid.length}</span></div>
       <div class="pr"><span class="lb">Unpaid ❌</span><span class="vl r">${unpaid.length}</span></div>
@@ -697,7 +710,7 @@ function renderSidebar(f=''){
   }).join('')||'<div class="nodata">No members found</div>';
   document.getElementById('st-total').textContent=members.length;
   document.getElementById('st-due').textContent=members.filter(m=>calcDue(m)>0).length;
-  document.getElementById('st-paid').textContent=members.filter(m=>getPaid(m).includes(NOW)).length;
+  document.getElementById('st-paid').textContent=members.filter(m=>getPaid(m).map(normMonth).includes(normMonth(NOW))).length;
   document.getElementById('st-fee').textContent=settings.defaultFee||'—';
 }
 function filterSB(v){renderSidebar(v);}
@@ -722,7 +735,7 @@ function initAdmChat(){
 function renderAdmin(){
   const fee=Number(settings.defaultFee)||500;
   const totalDue=members.reduce((s,m)=>s+calcDue(m),0);
-  const collected=members.filter(m=>getPaid(m).includes(NOW)).length*fee;
+  const collected=members.filter(m=>getPaid(m).map(normMonth).includes(normMonth(NOW))).length*fee;
   document.getElementById('adm-total').textContent=members.length;
   document.getElementById('adm-col').textContent=lkr(collected);
   document.getElementById('adm-due').textContent=lkr(totalDue);
@@ -763,7 +776,7 @@ async function addMember(){
   const fee=parseInt(document.getElementById('f-fee').value)||settings.defaultFee||500;
   if(!name||!mobile||!nic||!house||!pass||!joined){toast('Please fill all fields','er');return;}
   if(!/^[1-9]\d{8}$/.test(mobile)){toast('Mobile: 9 digits, no leading 0 (e.g. 771234567)','er');return;}
-  if(!/^\d{9}$/.test(nic)&&!/^\d{11}$/.test(nic)){toast('NIC: must be exactly 9 or 11 digits','er');return;}
+  if(!validNIC(nic)){toast('NIC: must be 9 chars (e.g. 123456789V) or 12 digits (e.g. 199012345678)','er');return;}
   loading(true);
   const res=await apiCall({action:'addMember',name,mobile,nic,house,password:pass,joined,fee});
   if(res.success){
@@ -835,7 +848,7 @@ async function saveEdit(){
   const mobile=document.getElementById('e-mobile').value.trim();
   const nic=document.getElementById('e-nic').value.trim();
   if(!/^[1-9]\d{8}$/.test(mobile)){toast('Mobile: 9 digits, no leading 0','er');return;}
-  if(!/^\d{9}$/.test(nic)&&!/^\d{11}$/.test(nic)){toast('NIC: 9 or 11 digits only','er');return;}
+  if(!validNIC(nic)){toast('NIC: 9 chars (123456789V) or 12 digits','er');return;}
   const d={action:'editMember',id:document.getElementById('e-id').value,
     name:document.getElementById('e-name').value.trim(),mobile,nic,
     house:document.getElementById('e-house').value.trim(),
