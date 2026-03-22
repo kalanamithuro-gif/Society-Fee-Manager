@@ -690,28 +690,66 @@ function addMsgTo(container,type,html,time){
 }
 
 function buildCard(m){
-  const due=calcDue(m);
-  const all=allMonths(normMonth(m.joined),NOW);
-  const paid=getPaid(m);
-  const unpaid=getUnpaid(m);
-  const last12=allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
-  const chips=last12.map(mo=>`<div class="mochip ${paid.includes(mo)?'p':'u'}">${moLabel(mo)}</div>`).join('');
+  const due    = calcDue(m);
+  const fee    = Number(m.fee);
+  const all    = allMonths(normMonth(m.joined),NOW);
+  const paid   = getPaid(m);
+  const unpaid = getUnpaid(m);
+
+  // Total paid amount
+  const totalPaid = payments
+    .filter(p=>String(p.memberId)===String(m.id))
+    .reduce((s,p)=>s+Number(p.amount),0);
+  const totalCharged = all.length * fee;
+
+  // Credit breakdown
+  const creditAmt   = Math.abs(due);
+  const fullCrMos   = due<0 ? Math.floor(creditAmt/fee) : 0;
+  const partCrAmt   = due<0 ? creditAmt%fee : 0;
+
+  // Last 12 months chips — show paid months in green, unpaid in red
+  const last12 = allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
+  const chips  = last12.map(mo=>`<div class="mochip ${paid.includes(mo)?'p':'u'}">${moLabel(mo)}</div>`).join('');
+
+  // Duebox content
+  let dueboxClass, dueboxBig, dueboxSm;
+  if(due>0){
+    dueboxClass='due';
+    dueboxBig = lkr(due);
+    dueboxSm  = 'Outstanding balance as of '+moLabel(NOW);
+  } else if(due<0){
+    dueboxClass='clr';
+    dueboxBig = '🔼 Credit '+lkr(creditAmt);
+    let creditDetail = fullCrMos>0 ? fullCrMos+' full month(s)' : '';
+    if(partCrAmt>0) creditDetail += (creditDetail?' + ':'')+lkr(partCrAmt)+' partial';
+    dueboxSm = 'Advance: '+creditDetail+' paid ahead';
+  } else {
+    dueboxClass='clr';
+    dueboxBig = '✔ All Clear';
+    dueboxSm  = 'All payments up to date!';
+  }
+
   return `<div class="pcard">
     <div class="pc-hd">
       <div class="pc-ava">${ini(m.name)}</div>
-      <div class="pc-name"><div class="n">${m.name}</div><div class="s">🏠 ${m.house} · 📱 ${m.mobile}</div></div>
+      <div class="pc-name">
+        <div class="n">${m.name}</div>
+        <div class="s">🏠 ${m.house} · 📱 ${m.mobile}</div>
+      </div>
     </div>
     <div class="pc-bd">
-      <div class="pr"><span class="lb">Monthly Fee</span><span class="vl">${lkr(m.fee)}</span></div>
+      <div class="pr"><span class="lb">Monthly Fee</span><span class="vl">${lkr(fee)}</span></div>
       <div class="pr"><span class="lb">NIC</span><span class="vl">${m.nic||'—'}</span></div>
       <div class="pr"><span class="lb">Member Since</span><span class="vl">${moLabel(normMonth(m.joined))}</span></div>
-      <div class="pr"><span class="lb">Total Months</span><span class="vl">${all.length}</span></div>
-      <div class="pr"><span class="lb">Paid ✅</span><span class="vl g">${paid.length}</span></div>
-      <div class="pr"><span class="lb">Unpaid ❌</span><span class="vl r">${unpaid.length}</span></div>
-      ${unpaid.length?`<div class="pr"><span class="lb">Due Months</span><span class="vl a" style="font-size:.7rem">${unpaid.map(moLabel).join(', ')}</span></div>`:''}
-      <div class="duebox ${due>0?'due':'clr'}">
-        <div class="big">${due>0?lkr(due):'✔ All Clear'}</div>
-        <div class="sm">${due>0?'Outstanding dues as of '+moLabel(NOW):'All payments up to date!'}</div>
+      <div class="pr"><span class="lb">Total Months Billed</span><span class="vl">${all.length}</span></div>
+      <div class="pr"><span class="lb">Total Charged</span><span class="vl">${lkr(totalCharged)}</span></div>
+      <div class="pr"><span class="lb">Total Paid 💰</span><span class="vl g">${lkr(totalPaid)}</span></div>
+      ${due>0?`<div class="pr"><span class="lb">Balance Due ❌</span><span class="vl r">${lkr(due)}</span></div>`:''}
+      ${due<0?`<div class="pr"><span class="lb">Advance Credit 🔼</span><span class="vl g">${lkr(creditAmt)}</span></div>`:''}
+      ${unpaid.length>0?`<div class="pr"><span class="lb">Unpaid Months</span><span class="vl a" style="font-size:.7rem">${unpaid.map(moLabel).join(', ')}</span></div>`:''}
+      <div class="duebox ${dueboxClass}">
+        <div class="big">${dueboxBig}</div>
+        <div class="sm">${dueboxSm}</div>
       </div>
       <div class="mo-title">Last 12 Months</div>
       <div class="mogrid">${chips}</div>
