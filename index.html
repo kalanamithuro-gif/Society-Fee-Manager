@@ -1012,6 +1012,7 @@ function renderAdmin(){
       <td><div class="tacts">
         <button class="btn bb" onclick="openEdit('${m.id}')">✏️</button>
         <button class="btn br" onclick="delMember('${m.id}')">🗑️</button>
+        <button class="btn" style="background:#fef3c7;color:#92400e;" onclick="fixPayments('${m.id}','${m.name}')">🔧</button>
       </div></td>
     </tr>`;
   }).join('')||'<tr><td colspan="9" class="nodata">No members yet</td></tr>';
@@ -1208,6 +1209,17 @@ function openEdit(id){
   document.getElementById('edit-modal').classList.add('on');
 }
 function closeModal(){document.getElementById('edit-modal').classList.remove('on');}
+
+async function fixPayments(id, name){
+  if(!confirm('Fix duplicate/missing payment records for '+name+'?\nThis will merge any duplicate month entries.')) return;
+  loading(true);
+  const res = await apiCall({action:'fixMemberPayments', memberId:id});
+  if(res.success){
+    toast('✅ '+name+' payments fixed! '+res.fixed);
+    await loadData(); renderAdmin(); renderSidebar();
+  } else toast(res.error||'Error fixing payments','er');
+  loading(false);
+}
 
 async function saveEdit(){
   const mobile=document.getElementById('e-mobile').value.trim();
