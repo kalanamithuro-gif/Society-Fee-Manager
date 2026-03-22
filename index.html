@@ -935,10 +935,22 @@ function initAdmChat(){
 // ════════════════════════════════════════════════
 function renderAdmin(){
   const fee=Number(settings.defaultFee)||500;
-  const totalDue=members.reduce((s,m)=>s+calcDue(m),0);
-  const collected=members.filter(m=>getPaid(m).map(normMonth).includes(normMonth(NOW))).length*fee;
+
+  // Total pending = only POSITIVE dues (members who owe money), ignore credit members
+  const totalDue=members.reduce((s,m)=>s+Math.max(0,calcDue(m)),0);
+
+  // This month collected = sum of actual payment amounts recorded for NOW month
+  const collectedThisMo=payments
+    .filter(p=>normMonth(p.month)===NOW)
+    .reduce((s,p)=>s+Number(p.amount),0);
+
+  // All time collected = sum of ALL payments ever recorded
+  const collectedAllTime=payments
+    .reduce((s,p)=>s+Number(p.amount),0);
+
   document.getElementById('adm-total').textContent=members.length;
-  document.getElementById('adm-col').textContent=lkr(collected);
+  document.getElementById('adm-col').textContent=lkr(collectedThisMo);
+  document.getElementById('adm-col-all').textContent=lkr(collectedAllTime);
   document.getElementById('adm-due').textContent=lkr(totalDue);
   document.getElementById('mem-count').textContent=members.length+' members';
   document.getElementById('s-name').value=settings.societyName||'';
@@ -967,14 +979,18 @@ function renderAdmin(){
           const fee=Number(m.fee);
           const fullOwing=Math.floor(due/fee);
           const partial=due%fee;
-          if(fullOwing===0) return '⚡ Partial '+lkr(due)+' left';
-          return fullOwing+(partial>0?'.5':'')+' mo owing';
+          if(fullOwing===0) return '⚡ LKR '+due+' partial';
+          if(partial>0) return fullOwing+' mo + LKR '+partial+' due';
+          return fullOwing+' mo owing';
         }
         if(due<0){
           const fee=Number(m.fee);
-          const fullCredit=Math.floor(Math.abs(due)/fee);
-          const partCredit=Math.abs(due)%fee;
-          return '🔼 '+(fullCredit+(partCredit>0?'.'+Math.round(partCredit/fee*10):'')+' mo credit');
+          const creditAmt=Math.abs(due);
+          const fullCredit=Math.floor(creditAmt/fee);
+          const partCredit=creditAmt%fee;
+          if(fullCredit===0) return '🔼 LKR '+creditAmt+' credit';
+          if(partCredit>0) return '🔼 '+fullCredit+' mo + LKR '+partCredit;
+          return '🔼 '+fullCredit+' mo credit';
         }
         return '✅ Paid Up';
       })()}</span></td>
