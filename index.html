@@ -631,11 +631,17 @@ function processQuery(raw, msgFn){
     setTimeout(()=>msgFn('b','📋 <b>How to use:</b><br>🪪 Type your <b>NIC</b> — e.g. 199012345678<br>📱 Type your <b>Mobile</b> — e.g. 771234567<br>👋 Type <b>hi</b> — greeting'),400);
     return;
   }
-  const cl=val.replace(/[\s\-]/g,'');
-  const mb=members.find(m=>
-    m.mobile.replace(/[\s\-]/g,'')===cl ||
-    (m.nic&&m.nic.replace(/[\s\-]/g,'')===cl)
-  );
+  const cl=val.replace(/[\s\-]/g,'').toUpperCase();
+  const mb=members.find(m=>{
+    // mobile match
+    if(m.mobile.replace(/[\s\-]/g,'')===cl) return true;
+    if(!m.nic) return false;
+    const storedNIC=m.nic.replace(/[\s\-]/g,'').toUpperCase(); // e.g. 921371390V
+    const storedBase=storedNIC.replace(/[VX]$/,'');              // e.g. 921371390
+    const inputBase=cl.replace(/[VX]$/,'');                      // strip V/X from input too
+    // match: exact, or without suffix, or input without suffix matches stored base
+    return storedNIC===cl || storedBase===cl || inputBase===storedBase;
+  });
   if(mb){
     setTimeout(()=>{
       msgFn('b',`✅ Record found for <b>${mb.name}</b>!`);
