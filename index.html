@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kalana Mithuro - Fee Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#25D366;--teal:#075E54;--dark:#128C7E;
+  --bubble:#DCF8C6;--chatbg:#efeae2;
+  --sb:#111b21;--hover:#202c33;--hdr:#202c33;
+  --red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+  --text:#111827;--muted:#6b7280;--border:#e5e7eb;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Sora',sans-serif;background:#0f172a;overflow:hidden;}
+
+/* ════════════════════════════
+   PUBLIC CHAT APP (default)
+════════════════════════════ */
+#chat-app{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+
+/* TOPBAR */
+.topbar{background:var(--teal);height:54px;padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.tb-logo{width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.tb-info{flex:1;min-width:0;}
+.tb-info h1{font-family:'Playfair Display',serif;color:#fff;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-info p{color:rgba(255,255,255,.55);font-size:.65rem;margin-top:1px;}
+.tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.admin-login-btn{padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.35);color:rgba(255,255,255,.8);background:transparent;font-size:.75rem;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;transition:all .2s;}
+.admin-login-btn:hover,.admin-login-btn:active{background:var(--green);border-color:var(--green);color:#fff;}
+.online-badge{display:flex;align-items:center;gap:5px;font-size:.68rem;color:rgba(255,255,255,.5);}
+.dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* MESSAGES */
+.msgs{flex:1;overflow-y:auto;padding:14px 14px 10px;background:var(--chatbg);display:flex;flex-direction:column;gap:9px;}
+.msgs::-webkit-scrollbar{width:3px;}
+.msgs::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;}
+
+.msg{max-width:82%;animation:pop .22s ease;}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.b{align-self:flex-start;}
+.msg.u{align-self:flex-end;}
+.bbl{padding:9px 13px;border-radius:12px;font-size:.86rem;line-height:1.6;word-wrap:break-word;}
+.msg.b .bbl{background:#fff;border-top-left-radius:2px;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.msg.u .bbl{background:var(--bubble);border-top-right-radius:2px;color:var(--text);}
+.mtime{font-size:.6rem;color:var(--muted);margin-top:3px;padding:0 4px;}
+.msg.u .mtime{text-align:right;}
+
+/* PAY CARD */
+.pcard{background:#fff;border-radius:14px;overflow:hidden;margin-top:3px;box-shadow:0 2px 10px rgba(0,0,0,.1);width:100%;max-width:310px;}
+.pc-hd{background:linear-gradient(135deg,var(--teal),var(--dark));padding:13px 14px;display:flex;align-items:center;gap:10px;}
+.pc-ava{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;}
+.pc-name .n{color:#fff;font-size:.92rem;font-weight:600;}
+.pc-name .s{color:rgba(255,255,255,.7);font-size:.67rem;margin-top:2px;}
+.pc-bd{padding:12px 14px;}
+.pr{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px dashed #f3f4f6;font-size:.8rem;gap:8px;}
+.pr:last-child{border:none;}
+.pr .lb{color:var(--muted);flex-shrink:0;}
+.pr .vl{font-weight:600;text-align:right;}
+.vl.g{color:#16a34a;}.vl.r{color:var(--red);}.vl.a{color:var(--amber);}
+.duebox{margin-top:10px;border-radius:10px;padding:11px;text-align:center;}
+.duebox.due{background:#fef2f2;border:1px solid #fecaca;}
+.duebox.clr{background:#f0fdf4;border:1px solid #bbf7d0;}
+.duebox .big{font-size:1.35rem;font-weight:700;}
+.duebox.due .big{color:var(--red);}
+.duebox.clr .big{color:#16a34a;}
+.duebox .sm{font-size:.68rem;color:var(--muted);margin-top:3px;}
+.mogrid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:8px;}
+.mochip{padding:4px 2px;border-radius:6px;font-size:.59rem;font-weight:600;text-align:center;}
+.mochip.p{background:#dcfce7;color:#166534;}
+.mochip.u{background:#fee2e2;color:#991b1b;}
+.mo-title{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:10px;}
+
+/* CHAT INPUT */
+.chat-inp-row{background:#f0f2f5;padding:10px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.cinp{flex:1;background:#fff;border:none;border-radius:24px;padding:11px 17px;font-size:.88rem;font-family:'Sora',sans-serif;outline:none;color:var(--text);}
+.cinp::placeholder{color:#aaa;}
+.sbtn{width:44px;height:44px;border-radius:50%;background:var(--green);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;flex-shrink:0;}
+.sbtn:active{background:var(--dark);transform:scale(.93);}
+
+/* ════════════════════════════
+   ADMIN LOGIN MODAL
+════════════════════════════ */
+#admin-modal{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.6);z-index:500;
+  align-items:center;justify-content:center;padding:16px;
+}
+#admin-modal.on{display:flex;}
+.amodal-box{
+  background:linear-gradient(135deg,#1e293b,#0f2027);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:30px 24px;
+  width:100%;max-width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  animation:sup .22s ease;
+}
+@keyframes sup{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.amodal-logo{text-align:center;margin-bottom:22px;}
+.amodal-logo .ico{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--green));display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:8px;}
+.amodal-logo h2{font-family:'Playfair Display',serif;color:#fff;font-size:1.15rem;}
+.amodal-logo p{color:rgba(255,255,255,.5);font-size:.72rem;margin-top:3px;}
+.lfield{margin-bottom:14px;}
+.lfield label{display:block;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.4);margin-bottom:5px;}
+.lfield input{width:100%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;font-size:.88rem;font-family:'Sora',sans-serif;color:#fff;outline:none;transition:border-color .2s;}
+.lfield input:focus{border-color:var(--green);}
+.lfield input::placeholder{color:rgba(255,255,255,.25);}
+.lbtn{width:100%;padding:12px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--teal),var(--green));color:#fff;font-size:.88rem;font-weight:600;font-family:'Sora',sans-serif;margin-top:4px;}
+.lbtn:active{transform:scale(.98);}
+.lerr{color:#f87171;font-size:.75rem;text-align:center;margin-top:10px;min-height:18px;}
+.close-modal-btn{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:.82rem;font-family:'Sora',sans-serif;cursor:pointer;margin-top:8px;}
+.close-modal-btn:active{background:rgba(255,255,255,.05);}
+
+/* ════════════════════════════
+   ADMIN PANEL (full screen)
+════════════════════════════ */
+#admin-panel{display:none;flex-direction:column;height:100vh;height:100dvh;}
+#admin-panel.on{display:flex;}
+
+.adm-topbar{background:var(--teal);height:54px;padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.adm-topbar .tb-logo{background:rgba(255,255,255,.2);}
+.adm-topbar h1{font-family:'Playfair Display',serif;color:#fff;font-size:.95rem;flex:1;}
+.adm-tabs{display:flex;gap:5px;}
+.adm-tab{padding:5px 13px;border-radius:20px;font-size:.74rem;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);background:transparent;font-family:'Sora',sans-serif;transition:all .2s;}
+.adm-tab.on{background:var(--green);color:#fff;border-color:var(--green);}
+.logout-btn{padding:5px 13px;border-radius:20px;font-size:.74rem;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);background:transparent;font-family:'Sora',sans-serif;}
+.logout-btn:active{background:var(--red);border-color:var(--red);color:#fff;}
+
+/* Admin body */
+.adm-body{flex:1;overflow:hidden;display:flex;}
+
+/* Sidebar */
+.asb{width:260px;background:var(--sb);display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid rgba(255,255,255,.06);}
+.asb-stats{padding:12px;background:var(--hdr);border-bottom:1px solid rgba(255,255,255,.06);}
+.asb-stats h3{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.3);margin-bottom:8px;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.sc{background:rgba(255,255,255,.05);border-radius:9px;padding:8px;text-align:center;}
+.sc .n{font-size:1.2rem;font-weight:700;color:var(--green);}
+.sc .l{font-size:.58rem;color:rgba(255,255,255,.4);margin-top:1px;}
+.sc.red .n{color:var(--red);}.sc.amb .n{color:var(--amber);}
+.asb-search{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.05);}
+.asb-search input{width:100%;background:rgba(255,255,255,.06);border:none;border-radius:8px;padding:7px 10px;color:#fff;font-size:.78rem;font-family:'Sora',sans-serif;outline:none;}
+.asb-search input::placeholder{color:rgba(255,255,255,.3);}
+.mlist{flex:1;overflow-y:auto;padding:5px;}
+.mlist::-webkit-scrollbar{width:3px;}
+.mlist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+.mrow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:9px;cursor:pointer;margin-bottom:2px;transition:background .15s;}
+.mrow:hover{background:var(--hover);}
+.mava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--green));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;}
+.mmeta{flex:1;min-width:0;}
+.mmeta .nm{font-size:.8rem;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mmeta .ph{font-size:.63rem;color:rgba(255,255,255,.4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dpill{font-size:.58rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+.dpill.cl{background:rgba(37,211,102,.15);color:var(--green);}
+.dpill.ow{background:rgba(239,68,68,.15);color:#f87171;}
+
+/* Admin views */
+.adm-views{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.adm-view{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.adm-view.on{display:flex;}
+
+/* Admin chat */
+.adm-chat-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+
+/* Admin panel content */
+.adm-scroll{flex:1;overflow-y:auto;padding:14px;background:#f8fafc;}
+.adm-scroll::-webkit-scrollbar{width:3px;}
+
+/* Summary cards */
+.scards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.scard{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 5px rgba(0,0,0,.06);}
+.scard .sv{font-size:1.25rem;font-weight:700;margin-bottom:3px;}
+.scard .sl{font-size:.65rem;color:var(--muted);}
+.scard.g .sv{color:#16a34a;}.scard.r .sv{color:var(--red);}.scard.b .sv{color:var(--blue);}
+
+/* Panels */
+.panel{background:#fff;border-radius:13px;box-shadow:0 1px 5px rgba(0,0,0,.06);overflow:hidden;margin-bottom:14px;}
+.phd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.phd h2{font-size:.88rem;font-weight:600;color:var(--text);}
+.phd span{font-size:.68rem;color:var(--muted);}
+.pbd{padding:14px 16px;}
+.fr{margin-bottom:11px;}
+.fr label{display:block;font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.fr input,.fr select{width:100%;border:1.5px solid var(--border);border-radius:9px;padding:9px 11px;font-size:.83rem;font-family:'Sora',sans-serif;color:var(--text);outline:none;transition:border-color .2s;background:#fff;}
+.fr input:focus,.fr select:focus{border-color:var(--green);}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.btn{padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Sora',sans-serif;transition:all .2s;}
+.bg{background:var(--green);color:#fff;}.bg:active{background:var(--dark);}
+.br{background:#fee2e2;color:var(--red);}
+.bb{background:#eff6ff;color:var(--blue);}
+.bf{width:100%;margin-top:4px;padding:11px;}
+.sep{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+
+/* Table */
+.twrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:.78rem;min-width:520px;}
+th{text-align:left;padding:9px 10px;font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);}
+td{padding:9px 10px;border-bottom:1px solid #f9fafb;color:var(--text);vertical-align:middle;}
+tr:hover td{background:#fafafa;}
+.tava{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--green));display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:.66rem;font-weight:700;}
+.tacts{display:flex;gap:5px;}
+.pchip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.67rem;font-weight:600;}
+.pchip.p{background:#dcfce7;color:#166534;}
+.pchip.u{background:#fee2e2;color:#991b1b;}
+
+/* Mobile bottom nav for admin */
+.bnav{display:none;background:var(--sb);border-top:1px solid rgba(255,255,255,.08);padding:6px 0 10px;flex-shrink:0;}
+.bnav-inner{display:flex;justify-content:space-around;}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:5px 22px;border-radius:10px;border:none;background:transparent;}
+.bnav-btn span:first-child{font-size:1.2rem;}
+.bnav-btn span:last-child{font-size:.58rem;color:rgba(255,255,255,.4);font-weight:600;font-family:'Sora',sans-serif;}
+.bnav-btn.on{background:rgba(37,211,102,.1);}
+.bnav-btn.on span:last-child{color:var(--green);}
+
+/* ════════════════════════════
+   UTILITIES
+════════════════════════════ */
+.loader{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center;}
+.loader.on{display:flex;}
+.spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--green);border-radius:50%;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 18px;border-radius:10px;font-size:.8rem;opacity:0;transition:all .3s;z-index:9998;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:#166534;}.toast.er{background:#991b1b;}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;padding:16px;}
+.modal-bg.on{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:20px 18px;width:100%;max-width:380px;animation:sup .22s ease;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:.92rem;font-weight:700;margin-bottom:14px;color:var(--text);}
+.modal-acts{display:flex;gap:7px;margin-top:14px;justify-content:flex-end;}
+.nodata{text-align:center;padding:24px;color:var(--muted);font-size:.8rem;}
+
+/* ════════════════════════════
+   RESPONSIVE
+════════════════════════════ */
+@media(max-width:700px){
+  .asb{display:none!important;}
+  .adm-tabs{display:none!important;}
+  .bnav{display:block;}
+  .scards{grid-template-columns:1fr 1fr;}
+  .scard .sv{font-size:1.05rem;}
+  .fg2{grid-template-columns:1fr;}
+  .msg{max-width:90%;}
+  .pcard{max-width:100%;}
+  .adm-scroll{padding:12px;padding-bottom:70px;}
+  .msgs{padding-bottom:10px;}
+}
+@media(max-width:380px){
+  .scards{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader" id="loader"><div class="spin"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- ════════ PUBLIC CHAT APP ════════ -->
+<div id="chat-app">
+  <div class="topbar">
+    <div class="tb-logo">🏘️</div>
+    <div class="tb-info">
+      <h1 id="pub-title">Kalana Mithuro</h1>
+      <p>Society Fee Checker</p>
+    </div>
+    <div class="tb-right">
+      <div class="online-badge"><div class="dot"></div> Online</div>
+      <button class="admin-login-btn" onclick="openAdminModal()">🔐 Admin</button>
+    </div>
+  </div>
+  <div class="msgs" id="pub-msgs"></div>
+  <div class="chat-inp-row">
+    <input class="cinp" id="pub-inp" placeholder="Enter your NIC or mobile number…" onkeydown="if(event.key==='Enter')pubSend()">
+    <button class="sbtn" onclick="pubSend()">➤</button>
+  </div>
+</div>
+
+<!-- ════════ ADMIN LOGIN MODAL ════════ -->
+<div id="admin-modal">
+  <div class="amodal-box">
+    <div class="amodal-logo">
+      <div class="ico">🔐</div>
+      <h2>Admin Login</h2>
+      <p id="modal-society-name">Kalana Mithuro</p>
+    </div>
+    <div class="lfield">
+      <label>Admin Password</label>
+      <input type="password" id="adm-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doAdminLogin()">
+    </div>
+    <button class="lbtn" onclick="doAdminLogin()">Login as Admin</button>
+    <div class="lerr" id="adm-err"></div>
+    <button class="close-modal-btn" onclick="closeAdminModal()">✕ Cancel</button>
+  </div>
+</div>
+
+<!-- ════════ ADMIN PANEL ════════ -->
+<div id="admin-panel">
+  <div class="adm-topbar">
+    <div class="tb-logo">🏘️</div>
+    <h1 id="adm-title">Admin Panel</h1>
+    <div class="adm-tabs" id="adm-tabs">
+      <button class="adm-tab on" onclick="switchAdmView('chat')">💬 Bot</button>
+      <button class="adm-tab" onclick="switchAdmView('manage')">⚙️ Manage</button>
+    </div>
+    <button class="logout-btn" onclick="adminLogout()">Logout</button>
+  </div>
+
+  <div class="adm-body">
+    <!-- Sidebar (desktop) -->
+    <div class="asb" id="asb">
+      <div class="asb-stats">
+        <h3>Stats</h3>
+        <div class="sg">
+          <div class="sc"><div class="n" id="st-total">0</div><div class="l">Members</div></div>
+          <div class="sc red"><div class="n" id="st-due">0</div><div class="l">With Dues</div></div>
+          <div class="sc amb"><div class="n" id="st-paid">0</div><div class="l">Paid This Mo</div></div>
+          <div class="sc"><div class="n" id="st-fee">—</div><div class="l">Monthly Fee</div></div>
+        </div>
+      </div>
+      <div class="asb-search"><input type="text" placeholder="🔍 Search name, NIC, mobile…" oninput="filterSB(this.value)"></div>
+      <div class="mlist" id="mlist"></div>
+    </div>
+
+    <!-- Admin Views -->
+    <div class="adm-views">
+
+      <!-- Admin Chat -->
+      <div class="adm-view on" id="adm-view-chat">
+        <div class="adm-chat-wrap">
+          <div class="topbar" style="height:46px;padding:0 14px;flex-shrink:0;">
+            <div class="tb-logo" style="width:30px;height:30px;font-size:.85rem;">🏘️</div>
+            <div class="tb-info"><h1 id="adm-bot-name" style="font-size:.85rem;">Fee Bot</h1><p>Search by NIC or mobile</p></div>
+            <div class="online-badge"><div class="dot"></div> Online</div>
+          </div>
+          <div class="msgs" id="adm-msgs"></div>
+          <div class="chat-inp-row">
+            <input class="cinp" id="adm-inp" placeholder="Enter NIC or mobile number…" onkeydown="if(event.key==='Enter')admSend()">
+            <button class="sbtn" onclick="admSend()">➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manage Panel -->
+      <div class="adm-view" id="adm-view-manage">
+        <div class="adm-scroll">
+
+          <div class="scards">
+            <div class="scard b"><div class="sv" id="adm-total">0</div><div class="sl">Members</div></div>
+            <div class="scard g"><div class="sv" id="adm-col">LKR 0</div><div class="sl">Collected</div></div>
+            <div class="scard r"><div class="sv" id="adm-due">LKR 0</div><div class="sl">Pending</div></div>
+          </div>
+
+          <!-- Add Member -->
+          <div class="panel">
+            <div class="phd"><h2>➕ Add New Member</h2></div>
+            <div class="pbd">
+              <div class="fr"><label>Full Name</label><input type="text" id="f-name" placeholder="e.g. Kamal Perera"></div>
+              <div class="fg2">
+                <div class="fr"><label>Mobile (9 digits, no 0)</label><input type="text" id="f-mobile" placeholder="771234567" maxlength="9"></div>
+                <div class="fr"><label>NIC (9 or 11 digits)</label><input type="text" id="f-nic" placeholder="199012345678" maxlength="12"></div>
+              </div>
+              <div class="fg2">
+                <div class="fr"><label>House / Unit No</label><input type="text" id="f-house" placeholder="A-12"></div>
+                <div class="fr"><label>Member Password</label><input type="password" id="f-pass" placeholder="Set a password"></div>
+              </div>
+              <div class="fg2">
+                <div class="fr"><label>Joining Month</label><input type="month" id="f-join"></div>
+                <div class="fr"><label>Monthly Fee (LKR)</label><input type="number" id="f-fee" placeholder="500"></div>
+              </div>
+              <button class="btn bg bf" onclick="addMember()">Add Member</button>
+            </div>
+          </div>
+
+          <!-- Settings + Payment -->
+          <div class="panel">
+            <div class="phd"><h2>⚙️ Settings</h2></div>
+            <div class="pbd">
+              <div class="fr"><label>Society Name</label><input type="text" id="s-name"></div>
+              <div class="fg2">
+                <div class="fr"><label>Default Fee (LKR)</label><input type="number" id="s-fee"></div>
+                <div class="fr"><label>Late Fine (LKR)</label><input type="number" id="s-fine"></div>
+              </div>
+              <div class="fr"><label>Change Admin Password</label><input type="password" id="s-pass" placeholder="Leave blank to keep current"></div>
+              <button class="btn bg bf" onclick="saveSettings()">Save Settings</button>
+              <div class="sep">
+                <div class="fr"><label>Record Payment</label>
+                  <select id="pay-mem"><option value="">— Select Member —</option></select>
+                </div>
+                <div class="fg2">
+                  <div class="fr"><label>Month</label><input type="month" id="pay-mo"></div>
+                  <div class="fr"><label>Amount (LKR)</label><input type="number" id="pay-amt"></div>
+                </div>
+                <button class="btn bb bf" onclick="recordPayment()">✔ Mark as Paid</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Members Table -->
+          <div class="panel">
+            <div class="phd"><h2>👥 All Members</h2><span id="mem-count"></span></div>
+            <div class="twrap">
+              <table>
+                <thead><tr>
+                  <th></th><th>Name</th><th>Mobile</th><th>NIC</th>
+                  <th>House</th><th>Joined</th><th>Due</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="mem-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /adm-views -->
+  </div><!-- /adm-body -->
+
+  <!-- Mobile bottom nav -->
+  <div class="bnav" id="bnav">
+    <div class="bnav-inner">
+      <button class="bnav-btn on" id="bn-chat" onclick="switchAdmView('chat')"><span>💬</span><span>BOT</span></button>
+      <button class="bnav-btn" id="bn-manage" onclick="switchAdmView('manage')"><span>⚙️</span><span>MANAGE</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h3>✏️ Edit Member</h3>
+    <input type="hidden" id="e-id">
+    <div class="fr"><label>Full Name</label><input type="text" id="e-name"></div>
+    <div class="fg2">
+      <div class="fr"><label>Mobile (9 digits)</label><input type="text" id="e-mobile" maxlength="9"></div>
+      <div class="fr"><label>NIC (9 or 11 digits)</label><input type="text" id="e-nic" maxlength="12"></div>
+    </div>
+    <div class="fg2">
+      <div class="fr"><label>House</label><input type="text" id="e-house"></div>
+      <div class="fr"><label>New Password</label><input type="password" id="e-pass" placeholder="Leave blank to keep"></div>
+    </div>
+    <div class="fr"><label>Monthly Fee (LKR)</label><input type="number" id="e-fee"></div>
+    <div class="modal-acts">
+      <button class="btn br" onclick="closeModal()">Cancel</button>
+      <button class="btn bg" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbwxxKDNHJ967bcQfGNsEjtnxEMLT0sSDscC_F2nL1P8HbbNd0_peZ5V3BVCEoy9VLuU/exec';
+const NOW = '2026-03';
+
+// ── STATE ──────────────────────────────────────
+let members=[], payments=[], settings={};
+let adminLoggedIn=false;
+
+// ── UTILS ──────────────────────────────────────
+function allMonths(from,to){
+  const r=[];let[y,m]=from.split('-').map(Number);
+  const[ty,tm]=to.split('-').map(Number);
+  while(y<ty||(y===ty&&m<=tm)){r.push(`${y}-${String(m).padStart(2,'0')}`);m++;if(m>12){m=1;y++;}}
+  return r;
+}
+function moLabel(ym){const[y,m]=ym.split('-');return new Date(y,m-1).toLocaleString('default',{month:'short',year:'2-digit'});}
+function getPaid(mb){return payments.filter(p=>String(p.memberId)===String(mb.id)).map(p=>String(p.month));}
+function getUnpaid(mb){return allMonths(mb.joined,NOW).filter(m=>!getPaid(mb).includes(m));}
+function calcDue(mb){return getUnpaid(mb).length*Number(mb.fee);}
+function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function lkr(n){return 'LKR '+Number(n).toLocaleString();}
+function curMo(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function loading(on){document.getElementById('loader').classList.toggle('on',on);}
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast on '+type;
+  setTimeout(()=>t.className='toast',3200);
+}
+async function apiCall(p){
+  const r=await fetch(API+'?'+new URLSearchParams(p));
+  return r.json();
+}
+
+// ── LOAD DATA ──────────────────────────────────
+async function loadData(){
+  const[ms,ps,st]=await Promise.all([
+    apiCall({action:'getMembers'}),
+    apiCall({action:'getPayments'}),
+    apiCall({action:'getSettings'})
+  ]);
+  members=Array.isArray(ms)?ms:[];
+  payments=Array.isArray(ps)?ps:[];
+  settings=(st&&typeof st==='object')?st:{};
+  // update public title
+  const sn=settings.societyName||'Kalana Mithuro';
+  document.getElementById('pub-title').textContent=sn;
+  document.getElementById('modal-society-name').textContent=sn;
+}
+
+// ── INIT ───────────────────────────────────────
+window.addEventListener('DOMContentLoaded',async()=>{
+  loading(true);
+  try{ await loadData(); }catch(e){console.error(e);}
+  loading(false);
+  initPubChat();
+});
+
+// ════════════════════════════════════════════════
+// PUBLIC CHAT
+// ════════════════════════════════════════════════
+function initPubChat(){
+  const sn=settings.societyName||'Kalana Mithuro';
+  pubMsg('b',`👋 <b>Ayubowan!</b><br>Welcome to <b>${sn}</b> Fee Checker.<br><br>Type your <b>NIC number</b> or <b>mobile number</b> below to check your dues instantly.`,'09:00 AM');
+}
+
+function pubMsg(type,html,time){
+  const c=document.getElementById('pub-msgs');
+  addMsgTo(c,type,html,time);
+}
+function admMsg(type,html,time){
+  const c=document.getElementById('adm-msgs');
+  addMsgTo(c,type,html,time);
+}
+function addMsgTo(container,type,html,time){
+  const t=time||new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const d=document.createElement('div');
+  d.className='msg '+type;
+  d.innerHTML=`<div class="bbl">${html}</div><div class="mtime">${t}</div>`;
+  container.appendChild(d);
+  container.scrollTop=container.scrollHeight;
+}
+
+function buildCard(m){
+  const due=calcDue(m);
+  const all=allMonths(m.joined,NOW);
+  const paid=getPaid(m);
+  const unpaid=getUnpaid(m);
+  const last12=allMonths(all.length>=12?all[all.length-12]:all[0],NOW);
+  const chips=last12.map(mo=>`<div class="mochip ${paid.includes(mo)?'p':'u'}">${moLabel(mo)}</div>`).join('');
+  return `<div class="pcard">
+    <div class="pc-hd">
+      <div class="pc-ava">${ini(m.name)}</div>
+      <div class="pc-name"><div class="n">${m.name}</div><div class="s">🏠 ${m.house} · 📱 ${m.mobile}</div></div>
+    </div>
+    <div class="pc-bd">
+      <div class="pr"><span class="lb">Monthly Fee</span><span class="vl">${lkr(m.fee)}</span></div>
+      <div class="pr"><span class="lb">NIC</span><span class="vl">${m.nic||'—'}</span></div>
+      <div class="pr"><span class="lb">Member Since</span><span class="vl">${moLabel(m.joined)}</span></div>
+      <div class="pr"><span class="lb">Total Months</span><span class="vl">${all.length}</span></div>
+      <div class="pr"><span class="lb">Paid ✅</span><span class="vl g">${paid.length}</span></div>
+      <div class="pr"><span class="lb">Unpaid ❌</span><span class="vl r">${unpaid.length}</span></div>
+      ${unpaid.length?`<div class="pr"><span class="lb">Due Months</span><span class="vl a" style="font-size:.7rem">${unpaid.map(moLabel).join(', ')}</span></div>`:''}
+      <div class="duebox ${due>0?'due':'clr'}">
+        <div class="big">${due>0?lkr(due):'✔ All Clear'}</div>
+        <div class="sm">${due>0?'Outstanding dues as of '+moLabel(NOW):'All payments up to date!'}</div>
+      </div>
+      <div class="mo-title">Last 12 Months</div>
+      <div class="mogrid">${chips}</div>
+    </div>
+  </div>`;
+}
+
+function processQuery(raw, msgFn){
+  if(!raw.trim()) return;
+  const val=raw.trim(), lo=val.toLowerCase();
+
+  if(['hi','hello','ayubowan','hey','vanakkam','suba'].some(g=>lo.includes(g))){
+    setTimeout(()=>msgFn('b',`👋 <b>Ayubowan!</b><br>Welcome to <b>${settings.societyName||'Kalana Mithuro'}</b> Fee Bot.<br>Type your <b>NIC or mobile</b> to check your dues.`),400);
+    return;
+  }
+  if(lo==='help'||lo==='?'){
+    setTimeout(()=>msgFn('b','📋 <b>How to use:</b><br>🪪 Type your <b>NIC</b> — e.g. 199012345678<br>📱 Type your <b>Mobile</b> — e.g. 771234567<br>👋 Type <b>hi</b> — greeting'),400);
+    return;
+  }
+  const cl=val.replace(/[\s\-]/g,'');
+  const mb=members.find(m=>
+    m.mobile.replace(/[\s\-]/g,'')===cl ||
+    (m.nic&&m.nic.replace(/[\s\-]/g,'')===cl)
+  );
+  if(mb){
+    setTimeout(()=>{
+      msgFn('b',`✅ Record found for <b>${mb.name}</b>!`);
+      setTimeout(()=>msgFn('b',buildCard(mb)),700);
+    },500);
+  } else if(/^\d{7,12}$/.test(cl)){
+    setTimeout(()=>msgFn('b',`❌ No member found with <b>${val}</b>.<br>Please contact your society admin.`),500);
+  } else {
+    setTimeout(()=>msgFn('b','🤔 Please enter your <b>NIC</b> or <b>mobile number</b>.<br>Type <b>help</b> for instructions.'),400);
+  }
+}
+
+function pubSend(){
+  const i=document.getElementById('pub-inp');
+  const v=i.value.trim();
+  if(!v) return;
+  pubMsg('u',v);
+  processQuery(v,pubMsg);
+  i.value='';
+}
+
+function admSend(){
+  const i=document.getElementById('adm-inp');
+  const v=i.value.trim();
+  if(!v) return;
+  admMsg('u',v);
+  processQuery(v,admMsg);
+  i.value='';
+}
+
+// ════════════════════════════════════════════════
+// ADMIN LOGIN / LOGOUT
+// ════════════════════════════════════════════════
+function openAdminModal(){
+  document.getElementById('admin-modal').classList.add('on');
+  document.getElementById('adm-err').textContent='';
+  document.getElementById('adm-pass').value='';
+  setTimeout(()=>document.getElementById('adm-pass').focus(),300);
+}
+function closeAdminModal(){
+  document.getElementById('admin-modal').classList.remove('on');
+}
+
+async function doAdminLogin(){
+  document.getElementById('adm-err').textContent='';
+  const pass=document.getElementById('adm-pass').value;
+  if(!pass){document.getElementById('adm-err').textContent='Enter password';return;}
+  loading(true);
+  try{
+    const res=await apiCall({action:'loginAdmin',password:pass});
+    if(res.success){
+      adminLoggedIn=true;
+      closeAdminModal();
+      openAdminPanel();
+    } else {
+      document.getElementById('adm-err').textContent=res.error||'Wrong password';
+    }
+  } catch(e){
+    document.getElementById('adm-err').textContent='Connection error';
+  }
+  loading(false);
+}
+
+function openAdminPanel(){
+  document.getElementById('chat-app').style.display='none';
+  document.getElementById('admin-panel').classList.add('on');
+  const sn=settings.societyName||'Kalana Mithuro';
+  document.getElementById('adm-title').textContent=sn+' — Admin';
+  document.getElementById('adm-bot-name').textContent=sn+' Bot';
+  renderSidebar();
+  renderAdmin();
+  initAdmChat();
+  switchAdmView('chat');
+}
+
+function adminLogout(){
+  adminLoggedIn=false;
+  document.getElementById('admin-panel').classList.remove('on');
+  document.getElementById('chat-app').style.display='flex';
+  document.getElementById('adm-msgs').innerHTML='';
+}
+
+// ════════════════════════════════════════════════
+// ADMIN VIEWS
+// ════════════════════════════════════════════════
+function switchAdmView(v){
+  document.querySelectorAll('.adm-view').forEach(el=>el.classList.remove('on'));
+  document.getElementById('adm-view-'+v).classList.add('on');
+  document.querySelectorAll('.adm-tab').forEach((b,i)=>b.classList.toggle('on',(v==='chat'&&i===0)||(v==='manage'&&i===1)));
+  ['chat','manage'].forEach(n=>{
+    const el=document.getElementById('bn-'+n);
+    if(el) el.classList.toggle('on',n===v);
+  });
+  if(v==='manage') renderAdmin();
+}
+
+// ════════════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════════════
+function renderSidebar(f=''){
+  const lo=f.toLowerCase();
+  const fl=members.filter(m=>
+    m.name.toLowerCase().includes(lo)||m.mobile.includes(lo)||
+    (m.nic&&m.nic.includes(lo))||m.house.toLowerCase().includes(lo)
+  );
+  document.getElementById('mlist').innerHTML=fl.map(m=>{
+    const due=calcDue(m);
+    return `<div class="mrow" onclick="admChatWith('${m.id}')">
+      <div class="mava">${ini(m.name)}</div>
+      <div class="mmeta">
+        <div class="nm">${m.name}</div>
+        <div class="ph">📱 ${m.mobile} · 🏠 ${m.house}</div>
+      </div>
+      <span class="dpill ${due>0?'ow':'cl'}">${due>0?lkr(due):'Clear'}</span>
+    </div>`;
+  }).join('')||'<div class="nodata">No members found</div>';
+  document.getElementById('st-total').textContent=members.length;
+  document.getElementById('st-due').textContent=members.filter(m=>calcDue(m)>0).length;
+  document.getElementById('st-paid').textContent=members.filter(m=>getPaid(m).includes(NOW)).length;
+  document.getElementById('st-fee').textContent=settings.defaultFee||'—';
+}
+function filterSB(v){renderSidebar(v);}
+
+function admChatWith(id){
+  switchAdmView('chat');
+  setTimeout(()=>{
+    const m=members.find(x=>x.id===id);
+    if(m){ admMsg('u',m.mobile); processQuery(m.mobile,admMsg); }
+  },150);
+}
+
+function initAdmChat(){
+  document.getElementById('adm-msgs').innerHTML='';
+  const sn=settings.societyName||'Kalana Mithuro';
+  admMsg('b',`👋 <b>Ayubowan Admin!</b><br>Welcome to <b>${sn}</b> Fee Bot.<br>Type a member's <b>NIC or mobile</b> to view their dues.`,'09:00 AM');
+}
+
+// ════════════════════════════════════════════════
+// ADMIN PANEL MANAGEMENT
+// ════════════════════════════════════════════════
+function renderAdmin(){
+  const fee=Number(settings.defaultFee)||500;
+  const totalDue=members.reduce((s,m)=>s+calcDue(m),0);
+  const collected=members.filter(m=>getPaid(m).includes(NOW)).length*fee;
+  document.getElementById('adm-total').textContent=members.length;
+  document.getElementById('adm-col').textContent=lkr(collected);
+  document.getElementById('adm-due').textContent=lkr(totalDue);
+  document.getElementById('mem-count').textContent=members.length+' members';
+  document.getElementById('s-name').value=settings.societyName||'';
+  document.getElementById('s-fee').value=fee;
+  document.getElementById('s-fine').value=settings.lateFine||50;
+  document.getElementById('f-join').value=curMo();
+  document.getElementById('f-fee').placeholder=fee;
+  document.getElementById('pay-mo').value=NOW;
+  document.getElementById('pay-amt').value=fee;
+  const sel=document.getElementById('pay-mem');
+  sel.innerHTML='<option value="">— Select Member —</option>'+
+    members.map(m=>`<option value="${m.id}">${m.name} (${m.mobile})</option>`).join('');
+  document.getElementById('mem-tbody').innerHTML=members.map(m=>{
+    const due=calcDue(m);
+    return `<tr>
+      <td><div class="tava">${ini(m.name)}</div></td>
+      <td><b>${m.name}</b></td><td>${m.mobile}</td><td>${m.nic||'—'}</td>
+      <td>${m.house}</td><td>${moLabel(m.joined)}</td>
+      <td class="${due>0?'vl r':'vl g'}">${due>0?lkr(due):'—'}</td>
+      <td><span class="pchip ${due>0?'u':'p'}">${due>0?getUnpaid(m).length+' mo owing':'Paid Up'}</span></td>
+      <td><div class="tacts">
+        <button class="btn bb" onclick="openEdit('${m.id}')">✏️</button>
+        <button class="btn br" onclick="delMember('${m.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" class="nodata">No members yet</td></tr>';
+}
+
+async function addMember(){
+  const name=document.getElementById('f-name').value.trim();
+  const mobile=document.getElementById('f-mobile').value.trim();
+  const nic=document.getElementById('f-nic').value.trim();
+  const house=document.getElementById('f-house').value.trim();
+  const pass=document.getElementById('f-pass').value;
+  const joined=document.getElementById('f-join').value;
+  const fee=parseInt(document.getElementById('f-fee').value)||settings.defaultFee||500;
+  if(!name||!mobile||!nic||!house||!pass||!joined){toast('Please fill all fields','er');return;}
+  if(!/^[1-9]\d{8}$/.test(mobile)){toast('Mobile: 9 digits, no leading 0 (e.g. 771234567)','er');return;}
+  if(!/^\d{9}$/.test(nic)&&!/^\d{11}$/.test(nic)){toast('NIC: must be exactly 9 or 11 digits','er');return;}
+  loading(true);
+  const res=await apiCall({action:'addMember',name,mobile,nic,house,password:pass,joined,fee});
+  if(res.success){
+    ['f-name','f-mobile','f-nic','f-house','f-pass'].forEach(id=>document.getElementById(id).value='');
+    toast(`✅ ${name} added successfully!`);
+    await loadData();renderAdmin();renderSidebar();
+  } else toast(res.error||'Error adding member','er');
+  loading(false);
+}
+
+async function saveSettings(){
+  const d={action:'saveSettings',
+    societyName:document.getElementById('s-name').value.trim(),
+    defaultFee:parseInt(document.getElementById('s-fee').value)||500,
+    lateFine:parseInt(document.getElementById('s-fine').value)||50
+  };
+  const np=document.getElementById('s-pass').value;
+  if(np) d.adminPassword=np;
+  loading(true);
+  const res=await apiCall(d);
+  if(res.success){
+    document.getElementById('s-pass').value='';
+    toast('✅ Settings saved!');
+    await loadData();
+    const sn=settings.societyName||'Kalana Mithuro';
+    document.getElementById('adm-title').textContent=sn+' — Admin';
+    document.getElementById('adm-bot-name').textContent=sn+' Bot';
+    document.getElementById('pub-title').textContent=sn;
+    renderAdmin();renderSidebar();
+  } else toast(res.error||'Error','er');
+  loading(false);
+}
+
+async function recordPayment(){
+  const mid=document.getElementById('pay-mem').value;
+  const month=document.getElementById('pay-mo').value;
+  const amount=parseInt(document.getElementById('pay-amt').value)||settings.defaultFee||500;
+  if(!mid||!month){toast('Select member & month','er');return;}
+  loading(true);
+  const res=await apiCall({action:'recordPayment',memberId:mid,month,amount});
+  if(res.success){toast('✅ Payment recorded!');await loadData();renderAdmin();renderSidebar();}
+  else toast(res.error||'Error','er');
+  loading(false);
+}
+
+async function delMember(id){
+  if(!confirm('Delete this member and all their payments?'))return;
+  loading(true);
+  const res=await apiCall({action:'deleteMember',id});
+  if(res.success){toast('Member removed','er');await loadData();renderAdmin();renderSidebar();}
+  else toast(res.error||'Error','er');
+  loading(false);
+}
+
+function openEdit(id){
+  const m=members.find(x=>x.id===id);if(!m)return;
+  document.getElementById('e-id').value=m.id;
+  document.getElementById('e-name').value=m.name;
+  document.getElementById('e-mobile').value=m.mobile;
+  document.getElementById('e-nic').value=m.nic||'';
+  document.getElementById('e-house').value=m.house;
+  document.getElementById('e-pass').value='';
+  document.getElementById('e-fee').value=m.fee;
+  document.getElementById('edit-modal').classList.add('on');
+}
+function closeModal(){document.getElementById('edit-modal').classList.remove('on');}
+
+async function saveEdit(){
+  const mobile=document.getElementById('e-mobile').value.trim();
+  const nic=document.getElementById('e-nic').value.trim();
+  if(!/^[1-9]\d{8}$/.test(mobile)){toast('Mobile: 9 digits, no leading 0','er');return;}
+  if(!/^\d{9}$/.test(nic)&&!/^\d{11}$/.test(nic)){toast('NIC: 9 or 11 digits only','er');return;}
+  const d={action:'editMember',id:document.getElementById('e-id').value,
+    name:document.getElementById('e-name').value.trim(),mobile,nic,
+    house:document.getElementById('e-house').value.trim(),
+    fee:parseInt(document.getElementById('e-fee').value)||settings.defaultFee||500
+  };
+  const p=document.getElementById('e-pass').value;
+  if(p) d.password=p;
+  loading(true);
+  const res=await apiCall(d);
+  if(res.success){closeModal();toast('✅ Member updated!');await loadData();renderAdmin();renderSidebar();}
+  else toast(res.error||'Error','er');
+  loading(false);
+}
+</script>
+</body>
+</html>
