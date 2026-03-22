@@ -1154,12 +1154,19 @@ async function recordPayment(){
   if(toRecord.length===0){toast('Nothing to record','er');return;}
 
   loading(true);
-  let successCount=0;
-  for(const rec of toRecord){
-    const res=await apiCall({action:'recordPayment',memberId:mid,month:rec.month,amount:rec.amount});
-    if(res.success) successCount++;
+  // Send ALL payments in ONE batch call to avoid partial failures
+  const res=await apiCall({
+    action:'recordPaymentBatch',
+    memberId:mid,
+    payments:JSON.stringify(toRecord.map(r=>({month:r.month,amount:r.amount})))
+  });
+
+  if(!res.success){
+    toast(res.error||'Error saving payments','er');
+    loading(false);
+    return;
   }
-  
+
   await loadData();
   renderAdmin();
   renderSidebar();
