@@ -550,20 +550,32 @@ function getPaidAmount(mb,month){
     .filter(p=>String(p.memberId)===String(mb.id)&&normMonth(p.month)===normMonth(month))
     .reduce((s,p)=>s+Number(p.amount),0);
 }
-function getUnpaid(mb){return allMonths(normMonth(mb.joined),NOW).filter(m=>!getPaid(mb).includes(m));}
+function getUnpaid(mb){
+  // Only months from joined up to NOW that are NOT fully paid
+  return allMonths(normMonth(mb.joined),NOW).filter(m=>!getPaid(mb).includes(m));
+}
+function getUnpaidPast(mb){
+  // Same as getUnpaid - months up to and including NOW that aren't fully paid
+  const paid=getPaid(mb);
+  return allMonths(normMonth(mb.joined),NOW).filter(m=>!paid.includes(m));
+}
 function calcDue(mb){
   const fee=Number(mb.fee);
-  const unpaid=getUnpaid(mb); // fully unpaid months
-  const partials=getPartialMonths(mb).filter(p=>p.month<=NOW); // partial months up to now
-  const credit=getCreditMonths(mb); // advance months fully paid
+  const partials=getPartialMonths(mb).filter(p=>p.month<=NOW);
+  const partialMonthSet=new Set(partials.map(p=>p.month));
+  
+  // Fully unpaid = months with NO payment at all (exclude partial months)
+  const fullyUnpaid=getUnpaid(mb).filter(m=>m<=NOW&&!partialMonthSet.has(m));
+  
+  const credit=getCreditMonths(mb);
 
-  if(unpaid.length>0||partials.length>0){
-    // Total remaining = unpaid months * fee + partial remaining amounts
-    const unpaidAmt=unpaid.filter(m=>m<=NOW).length*fee;
-    const partialAmt=partials.reduce((s,p)=>s+p.remaining,0);
-    return unpaidAmt+partialAmt;
+  if(fullyUnpaid.length>0||partials.length>0){
+    // fully unpaid months × fee  +  remaining amount on partial months
+    const fullyUnpaidAmt = fullyUnpaid.length * fee;
+    const partialAmt     = partials.reduce((s,p)=>s+p.remaining, 0);
+    return fullyUnpaidAmt + partialAmt;
   }
-  return -credit*fee; // negative = credit
+  return -credit*fee; // negative = credit (paid ahead)
 }
 function getCreditMonths(mb){
   // fully paid future months beyond NOW
@@ -984,53 +996,64 @@ async function recordPayment(){
   if(!mb){toast('Member not found','er');return;}
   const fee=Number(mb.fee)||Number(settings.defaultFee)||500;
   
-  // Figure out which months to allocate
-  // Start from oldest unpaid, then future months for credit
-  const unpaid=getUnpaid(mb); // already sorted oldest first
-  const paidAlready=getPaid(mb);
+  // Get all months that need payment (not fully paid), sorted oldest first
+  const allPastMonths = allMonths(normMonth(mb.joined), NOW);
+  const paidMonths    = getPaid(mb);  // fully paid months
   
-  // Get last paid/credited month to know where advance starts
-  const allPaidSorted=[...paidAlready].sort();
-  let nextAdvanceMonth = NOW;
-  // Find last month with payment to start advance from there
-  const futurePaid=allPaidSorted.filter(m=>m>NOW);
-  if(futurePaid.length>0){
-    nextAdvanceMonth=nextMonth(futurePaid[futurePaid.length-1]);
-  } else {
-    nextAdvanceMonth=nextMonth(NOW);
-  }
+  // Months still needing payment (past + current, not fully paid)
+  const monthsToClear = allPastMonths.filter(m => !paidMonths.includes(m));
+  
+  // Find where advance payments start (after NOW or after last future paid month)
+  const futurePaid = paidMonths.filter(m=>m>NOW).sort();
+  let nextAdvanceMonth = futurePaid.length>0
+    ? nextMonth(futurePaid[futurePaid.length-1])
+    : nextMonth(NOW);
 
-  let remaining=amount;
-  const toRecord=[];
+  let remaining = amount;
+  const toRecord = [];
 
-  if(unpaid.length>0){
-    // allocate to unpaid months first (oldest first)
-    for(const mo of unpaid){
-      if(remaining<=0) break;
-      if(remaining>=fee){
-        toRecord.push({month:mo,amount:fee,type:'full'});
-        remaining-=fee;
-      } else {
-        // partial payment - still mark month but record partial amount
-        toRecord.push({month:mo,amount:remaining,type:'partial'});
-        remaining=0;
-      }
+  // Step 1: Fill up any partial payments first (oldest partial first)
+  const partialMos = getPartialMonths(mb).filter(p=>p.month<=NOW).sort((a,b)=>a.month.localeCompare(b.month));
+  for(const partial of partialMos){
+    if(remaining<=0) break;
+    const needed = partial.remaining;
+    if(remaining>=needed){
+      // Complete this partial month
+      toRecord.push({month:partial.month, amount:needed, type:'full'});
+      remaining -= needed;
+    } else {
+      // Add more to partial but still not complete
+      toRecord.push({month:partial.month, amount:remaining, type:'partial'});
+      remaining = 0;
     }
   }
 
-  // If still remaining after clearing dues → advance future months
-  if(remaining>0){
-    let advMonth=nextAdvanceMonth;
-    while(remaining>0){
-      if(remaining>=fee){
-        toRecord.push({month:advMonth,amount:fee,type:'advance'});
-        remaining-=fee;
-      } else {
-        toRecord.push({month:advMonth,amount:remaining,type:'partial-advance'});
-        remaining=0;
-      }
-      advMonth=nextMonth(advMonth);
+  // Step 2: Pay fully unpaid months (no payment at all yet)
+  const fullyUnpaid = monthsToClear.filter(m => !partialMos.find(p=>p.month===m));
+  for(const mo of fullyUnpaid){
+    if(remaining<=0) break;
+    if(remaining>=fee){
+      toRecord.push({month:mo, amount:fee, type:'full'});
+      remaining -= fee;
+    } else {
+      toRecord.push({month:mo, amount:remaining, type:'partial'});
+      remaining = 0;
     }
+  }
+
+  // Step 3: Any remaining → advance future months
+  let advMonth = nextAdvanceMonth;
+  while(remaining>0){
+    if(remaining>=fee){
+      toRecord.push({month:advMonth, amount:fee, type:'advance'});
+      remaining -= fee;
+    } else {
+      toRecord.push({month:advMonth, amount:remaining, type:'partial-advance'});
+      remaining = 0;
+    }
+    advMonth = nextMonth(advMonth);
+    // Safety: don't go more than 24 months ahead
+    if(toRecord.filter(r=>r.type==='advance'||r.type==='partial-advance').length>24) break;
   }
 
   if(toRecord.length===0){toast('Nothing to record','er');return;}
@@ -1048,14 +1071,16 @@ async function recordPayment(){
   updatePayInfo();
   document.getElementById('pay-amt').value='';
 
-  // Build summary message
-  const fullMos=toRecord.filter(r=>r.type==='full').map(r=>moLabel(r.month));
-  const advMos=toRecord.filter(r=>r.type==='advance').map(r=>moLabel(r.month));
-  const partials=toRecord.filter(r=>r.type.includes('partial'));
-  let summary=`✅ ${lkr(amount)} allocated:\n`;
-  if(fullMos.length) summary+=`✔ Cleared: ${fullMos.join(', ')}\n`;
-  if(advMos.length) summary+=`⬆️ Advance: ${advMos.join(', ')}\n`;
-  if(partials.length) summary+=`⚡ Partial: ${moLabel(partials[0].month)}`;
+  // Build summary toast
+  const fullMos   = toRecord.filter(r=>r.type==='full').map(r=>moLabel(r.month));
+  const advMos    = toRecord.filter(r=>r.type==='advance').map(r=>moLabel(r.month));
+  const partialMs = toRecord.filter(r=>r.type==='partial');
+  const partAdvMs = toRecord.filter(r=>r.type==='partial-advance');
+  let summary = `✅ ${lkr(amount)} saved!`;
+  if(fullMos.length)   summary += ` Cleared: ${fullMos.join(', ')}.`;
+  if(advMos.length)    summary += ` Advance: ${advMos.join(', ')}.`;
+  if(partialMs.length) summary += ` Partial: ${moLabel(partialMs[0].month)}.`;
+  if(partAdvMs.length) summary += ` Part-advance: ${moLabel(partAdvMs[0].month)}.`;
   toast(summary);
   loading(false);
 }
