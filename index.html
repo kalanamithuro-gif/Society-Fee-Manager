@@ -423,13 +423,11 @@ tr:hover td{background:#fafafa;}
               <button class="btn bg bf" onclick="saveSettings()">Save Settings</button>
               <div class="sep">
                 <div class="fr"><label>Record Payment</label>
-                  <select id="pay-mem"><option value="">— Select Member —</option></select>
+                  <select id="pay-mem" onchange="updatePayInfo()"><option value="">— Select Member —</option></select>
                 </div>
-                <div class="fg2">
-                  <div class="fr"><label>Month</label><input type="month" id="pay-mo"></div>
-                  <div class="fr"><label>Amount (LKR)</label><input type="number" id="pay-amt"></div>
-                </div>
-                <button class="btn bb bf" onclick="recordPayment()">✔ Mark as Paid</button>
+                <div id="pay-info" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:10px 12px;font-size:.78rem;color:#166534;margin-bottom:10px;display:none;"></div>
+                <div class="fr"><label>Amount Received (LKR)</label><input type="number" id="pay-amt" placeholder="e.g. 500"></div>
+                <button class="btn bb bf" onclick="recordPayment()">✔ Auto-Allocate & Save</button>
               </div>
             </div>
           </div>
@@ -510,9 +508,31 @@ function moLabel(ym){
   return months[parseInt(m,10)-1]+' '+String(y).slice(2);
 }
 function normMonth(v){return String(v).trim().substring(0,7);}
+function nextMonth(ym){
+  let[y,m]=ym.split('-').map(Number);
+  m++; if(m>12){m=1;y++;}
+  return y+'-'+String(m).padStart(2,'0');
+}
+function addMonths(ym,n){
+  let r=ym;
+  for(let i=0;i<n;i++) r=nextMonth(r);
+  return r;
+}
 function getPaid(mb){return payments.filter(p=>String(p.memberId)===String(mb.id)).map(p=>normMonth(p.month));}
 function getUnpaid(mb){return allMonths(normMonth(mb.joined),NOW).filter(m=>!getPaid(mb).includes(m));}
-function calcDue(mb){return getUnpaid(mb).length*Number(mb.fee);}
+function calcDue(mb){
+  // positive = owes money, negative = credit (paid ahead)
+  const unpaidCount = getUnpaid(mb).length;
+  const creditCount = getCreditMonths(mb);
+  if(unpaidCount > 0) return unpaidCount * Number(mb.fee);
+  return -creditCount * Number(mb.fee); // credit shown as negative
+}
+function getCreditMonths(mb){
+  // how many future months paid beyond NOW
+  return payments
+    .filter(p=>String(p.memberId)===String(mb.id) && normMonth(p.month) > NOW)
+    .length;
+}
 function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function lkr(n){return 'LKR '+Number(n).toLocaleString();}
 function validNIC(nic){
@@ -760,7 +780,7 @@ function renderSidebar(f=''){
   }).join('')||'<div class="nodata">No members found</div>';
   document.getElementById('st-total').textContent=members.length;
   document.getElementById('st-due').textContent=members.filter(m=>calcDue(m)>0).length;
-  document.getElementById('st-paid').textContent=members.filter(m=>getPaid(m).map(normMonth).includes(normMonth(NOW))).length;
+  document.getElementById('st-paid').textContent=members.filter(m=>getPaid(m).includes(NOW)).length;
   document.getElementById('st-fee').textContent=settings.defaultFee||'—';
 }
 function filterSB(v){renderSidebar(v);}
@@ -795,7 +815,7 @@ function renderAdmin(){
   document.getElementById('s-fine').value=settings.lateFine||50;
   document.getElementById('f-join').value=curMo();
   document.getElementById('f-fee').placeholder=fee;
-  document.getElementById('pay-mo').value=NOW;
+  // pay-mo removed - auto allocation used
   document.getElementById('pay-amt').value=fee;
   const sel=document.getElementById('pay-mem');
   sel.innerHTML='<option value="">— Select Member —</option>'+
@@ -860,15 +880,109 @@ async function saveSettings(){
   loading(false);
 }
 
+function updatePayInfo(){
+  const mid=document.getElementById('pay-mem').value;
+  const info=document.getElementById('pay-info');
+  if(!mid){info.style.display='none';return;}
+  const mb=members.find(m=>m.id===mid);
+  if(!mb){info.style.display='none';return;}
+  const due=calcDue(mb);
+  const unpaid=getUnpaid(mb);
+  const credit=getCreditMonths(mb);
+  let msg='';
+  if(due>0){
+    msg=`⚠️ Outstanding: <b>${lkr(due)}</b> (${unpaid.length} months unpaid from <b>${moLabel(unpaid[0])}</b>)<br>Payment will be auto-allocated oldest first.`;
+  } else if(credit>0){
+    msg=`✅ No dues. Member has <b>${credit} month(s) credit</b>. Payment will add more advance months.`;
+  } else {
+    msg=`✅ All clear! Payment will be marked as advance for next months.`;
+  }
+  info.innerHTML=msg;
+  info.style.display='block';
+}
+
 async function recordPayment(){
   const mid=document.getElementById('pay-mem').value;
-  const month=document.getElementById('pay-mo').value;
-  const amount=parseInt(document.getElementById('pay-amt').value)||settings.defaultFee||500;
-  if(!mid||!month){toast('Select member & month','er');return;}
+  const amount=parseInt(document.getElementById('pay-amt').value);
+  if(!mid){toast('Select a member','er');return;}
+  if(!amount||amount<=0){toast('Enter a valid amount','er');return;}
+  const mb=members.find(m=>m.id===mid);
+  if(!mb){toast('Member not found','er');return;}
+  const fee=Number(mb.fee)||Number(settings.defaultFee)||500;
+  
+  // Figure out which months to allocate
+  // Start from oldest unpaid, then future months for credit
+  const unpaid=getUnpaid(mb); // already sorted oldest first
+  const paidAlready=getPaid(mb);
+  
+  // Get last paid/credited month to know where advance starts
+  const allPaidSorted=[...paidAlready].sort();
+  let nextAdvanceMonth = NOW;
+  // Find last month with payment to start advance from there
+  const futurePaid=allPaidSorted.filter(m=>m>NOW);
+  if(futurePaid.length>0){
+    nextAdvanceMonth=nextMonth(futurePaid[futurePaid.length-1]);
+  } else {
+    nextAdvanceMonth=nextMonth(NOW);
+  }
+
+  let remaining=amount;
+  const toRecord=[];
+
+  if(unpaid.length>0){
+    // allocate to unpaid months first (oldest first)
+    for(const mo of unpaid){
+      if(remaining<=0) break;
+      if(remaining>=fee){
+        toRecord.push({month:mo,amount:fee,type:'full'});
+        remaining-=fee;
+      } else {
+        // partial payment - still mark month but record partial amount
+        toRecord.push({month:mo,amount:remaining,type:'partial'});
+        remaining=0;
+      }
+    }
+  }
+
+  // If still remaining after clearing dues → advance future months
+  if(remaining>0){
+    let advMonth=nextAdvanceMonth;
+    while(remaining>0){
+      if(remaining>=fee){
+        toRecord.push({month:advMonth,amount:fee,type:'advance'});
+        remaining-=fee;
+      } else {
+        toRecord.push({month:advMonth,amount:remaining,type:'partial-advance'});
+        remaining=0;
+      }
+      advMonth=nextMonth(advMonth);
+    }
+  }
+
+  if(toRecord.length===0){toast('Nothing to record','er');return;}
+
   loading(true);
-  const res=await apiCall({action:'recordPayment',memberId:mid,month,amount});
-  if(res.success){toast('✅ Payment recorded!');await loadData();renderAdmin();renderSidebar();}
-  else toast(res.error||'Error','er');
+  let successCount=0;
+  for(const rec of toRecord){
+    const res=await apiCall({action:'recordPayment',memberId:mid,month:rec.month,amount:rec.amount});
+    if(res.success) successCount++;
+  }
+  
+  await loadData();
+  renderAdmin();
+  renderSidebar();
+  updatePayInfo();
+  document.getElementById('pay-amt').value='';
+
+  // Build summary message
+  const fullMos=toRecord.filter(r=>r.type==='full').map(r=>moLabel(r.month));
+  const advMos=toRecord.filter(r=>r.type==='advance').map(r=>moLabel(r.month));
+  const partials=toRecord.filter(r=>r.type.includes('partial'));
+  let summary=\`✅ \${lkr(amount)} allocated:\n\`;
+  if(fullMos.length) summary+=\`✔ Cleared: \${fullMos.join(', ')}\n\`;
+  if(advMos.length) summary+=\`⬆️ Advance: \${advMos.join(', ')}\n\`;
+  if(partials.length) summary+=\`⚡ Partial: \${moLabel(partials[0].month)}\`;
+  toast(summary);
   loading(false);
 }
 
