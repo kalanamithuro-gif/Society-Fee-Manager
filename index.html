@@ -341,6 +341,7 @@ tr:hover td{background:#fafafa;}
     <div class="adm-tabs" id="adm-tabs">
       <button class="adm-tab on" onclick="switchAdmView('chat')">💬 Bot</button>
       <button class="adm-tab" onclick="switchAdmView('manage')">⚙️ Manage</button>
+      <button class="adm-tab" onclick="switchAdmView('reports')">📊 Reports</button>
     </div>
     <button class="logout-btn" onclick="adminLogout()">Logout</button>
   </div>
@@ -451,6 +452,90 @@ tr:hover td{background:#fafafa;}
         </div>
       </div>
 
+      <!-- REPORTS VIEW -->
+      <div class="adm-view" id="adm-view-reports">
+        <div class="adm-scroll">
+
+          <div class="scards" style="grid-template-columns:repeat(2,1fr);">
+            <div class="scard b"><div class="sv" id="rpt-members">0</div><div class="sl">Total Members</div></div>
+            <div class="scard g"><div class="sv" id="rpt-paid">0</div><div class="sl">Paid This Month</div></div>
+            <div class="scard r"><div class="sv" id="rpt-due">0</div><div class="sl">Members With Dues</div></div>
+            <div class="scard g" style="border-left:3px solid #16a34a;"><div class="sv" id="rpt-credit">0</div><div class="sl">Members With Credit</div></div>
+          </div>
+
+          <!-- Report Cards -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;" id="rpt-grid">
+
+            <!-- Paid Report -->
+            <div class="panel">
+              <div class="phd" style="background:linear-gradient(135deg,#075E54,#128C7E);">
+                <h2 style="color:white;">✅ Paid Report</h2>
+                <span style="color:rgba(255,255,255,.7);">This month</span>
+              </div>
+              <div class="pbd">
+                <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Members who paid in <strong id="rpt-month-label">current month</strong></p>
+                <div id="rpt-paid-preview" style="font-size:.78rem;color:var(--text);max-height:120px;overflow-y:auto;margin-bottom:12px;"></div>
+                <button class="btn bg bf" onclick="downloadReport('paid')">⬇️ Download Paid Report (CSV)</button>
+              </div>
+            </div>
+
+            <!-- Due Report -->
+            <div class="panel">
+              <div class="phd" style="background:linear-gradient(135deg,#991B1B,#EF4444);">
+                <h2 style="color:white;">❌ Due Report</h2>
+                <span style="color:rgba(255,255,255,.7);">Outstanding balances</span>
+              </div>
+              <div class="pbd">
+                <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Members with <strong>outstanding dues</strong> as of <strong id="rpt-now-label">now</strong></p>
+                <div id="rpt-due-preview" style="font-size:.78rem;color:var(--text);max-height:120px;overflow-y:auto;margin-bottom:12px;"></div>
+                <button class="btn bf" style="background:#ef4444;color:white;" onclick="downloadReport('due')">⬇️ Download Due Report (CSV)</button>
+              </div>
+            </div>
+
+            <!-- Credit Report -->
+            <div class="panel">
+              <div class="phd" style="background:linear-gradient(135deg,#1565C0,#3B82F6);">
+                <h2 style="color:white;">🔼 Credit Report</h2>
+                <span style="color:rgba(255,255,255,.7);">Advance payments</span>
+              </div>
+              <div class="pbd">
+                <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Members who paid <strong>more than required</strong></p>
+                <div id="rpt-credit-preview" style="font-size:.78rem;color:var(--text);max-height:120px;overflow-y:auto;margin-bottom:12px;"></div>
+                <button class="btn bf" style="background:#3b82f6;color:white;" onclick="downloadReport('credit')">⬇️ Download Credit Report (CSV)</button>
+              </div>
+            </div>
+
+            <!-- Full Summary -->
+            <div class="panel">
+              <div class="phd" style="background:linear-gradient(135deg,#1e293b,#334155);">
+                <h2 style="color:white;">📊 Full Summary</h2>
+                <span style="color:rgba(255,255,255,.7);">All members</span>
+              </div>
+              <div class="pbd">
+                <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Complete payment history for <strong>all members</strong></p>
+                <div id="rpt-summary-preview" style="font-size:.78rem;color:var(--text);max-height:120px;overflow-y:auto;margin-bottom:12px;"></div>
+                <button class="btn bf" style="background:#1e293b;color:white;" onclick="downloadReport('summary')">⬇️ Download Full Summary (CSV)</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Month filter -->
+          <div class="panel">
+            <div class="phd"><h2>🗓️ Custom Month Report</h2></div>
+            <div class="pbd">
+              <div class="fg2">
+                <div class="fr"><label>Select Month</label><input type="month" id="rpt-custom-month"></div>
+                <div class="fr" style="display:flex;align-items:flex-end;">
+                  <button class="btn bg bf" onclick="downloadReport('custom')">⬇️ Download Month Report (CSV)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div><!-- /adm-views -->
   </div><!-- /adm-body -->
 
@@ -459,6 +544,7 @@ tr:hover td{background:#fafafa;}
     <div class="bnav-inner">
       <button class="bnav-btn on" id="bn-chat" onclick="switchAdmView('chat')"><span>💬</span><span>BOT</span></button>
       <button class="bnav-btn" id="bn-manage" onclick="switchAdmView('manage')"><span>⚙️</span><span>MANAGE</span></button>
+      <button class="bnav-btn" id="bn-reports" onclick="switchAdmView('reports')"><span>📊</span><span>REPORTS</span></button>
     </div>
   </div>
 </div>
@@ -896,12 +982,13 @@ function adminLogout(){
 function switchAdmView(v){
   document.querySelectorAll('.adm-view').forEach(el=>el.classList.remove('on'));
   document.getElementById('adm-view-'+v).classList.add('on');
-  document.querySelectorAll('.adm-tab').forEach((b,i)=>b.classList.toggle('on',(v==='chat'&&i===0)||(v==='manage'&&i===1)));
-  ['chat','manage'].forEach(n=>{
+  document.querySelectorAll('.adm-tab').forEach((b,i)=>b.classList.toggle('on',(v==='chat'&&i===0)||(v==='manage'&&i===1)||(v==='reports'&&i===2)));
+  ['chat','manage','reports'].forEach(n=>{
     const el=document.getElementById('bn-'+n);
     if(el) el.classList.toggle('on',n===v);
   });
   if(v==='manage') renderAdmin();
+  if(v==='reports') renderReports();
 }
 
 // ════════════════════════════════════════════════
@@ -1219,6 +1306,174 @@ function openEdit(id){
   document.getElementById('edit-modal').classList.add('on');
 }
 function closeModal(){document.getElementById('edit-modal').classList.remove('on');}
+
+// ════════════════════════════════════════════════
+// REPORTS
+// ════════════════════════════════════════════════
+function renderReports(){
+  const nowLabel = moLabel(NOW);
+  document.getElementById('rpt-month-label').textContent = nowLabel;
+  document.getElementById('rpt-now-label').textContent   = nowLabel;
+  document.getElementById('rpt-custom-month').value      = NOW;
+
+  const paid    = members.filter(m=>getPaid(m).includes(NOW));
+  const due     = members.filter(m=>calcDue(m)>0);
+  const credit  = members.filter(m=>calcDue(m)<0);
+
+  document.getElementById('rpt-members').textContent = members.length;
+  document.getElementById('rpt-paid').textContent    = paid.length;
+  document.getElementById('rpt-due').textContent     = due.length;
+  document.getElementById('rpt-credit').textContent  = credit.length;
+
+  // Paid preview
+  document.getElementById('rpt-paid-preview').innerHTML = paid.length
+    ? paid.map(m=>`<div style="padding:3px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;"><span>${m.name}</span><span style="color:#16a34a;font-weight:600;">${lkr(getPaidAmountForMonth(m,NOW))}</span></div>`).join('')
+    : '<div style="color:var(--muted);font-style:italic;">No payments recorded this month</div>';
+
+  // Due preview
+  document.getElementById('rpt-due-preview').innerHTML = due.length
+    ? due.map(m=>`<div style="padding:3px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;"><span>${m.name}</span><span style="color:#ef4444;font-weight:600;">${lkr(calcDue(m))}</span></div>`).join('')
+    : '<div style="color:#16a34a;font-style:italic;">No outstanding dues! 🎉</div>';
+
+  // Credit preview
+  document.getElementById('rpt-credit-preview').innerHTML = credit.length
+    ? credit.map(m=>`<div style="padding:3px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;"><span>${m.name}</span><span style="color:#3b82f6;font-weight:600;">🔼 ${lkr(Math.abs(calcDue(m)))}</span></div>`).join('')
+    : '<div style="color:var(--muted);font-style:italic;">No credit members</div>';
+
+  // Summary preview
+  document.getElementById('rpt-summary-preview').innerHTML =
+    `<div style="color:var(--muted);">${members.length} members total · Click download for full details</div>`;
+}
+
+function getPaidAmountForMonth(mb, month){
+  return payments
+    .filter(p=>String(p.memberId)===String(mb.id)&&normMonth(p.month)===normMonth(month))
+    .reduce((s,p)=>s+Number(p.amount),0);
+}
+
+function escCSV(v){
+  const s=String(v===null||v===undefined?'':v);
+  return s.includes(',')||s.includes('"')||s.includes('
+') ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+
+function downloadCSV(rows, filename){
+  const csv = rows.map(r=>r.map(escCSV).join(',')).join('
+');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function downloadReport(type){
+  const sn = settings.societyName||'Kalana Mithuro';
+  const dt = new Date().toLocaleDateString('en-GB');
+  let rows=[], filename='';
+
+  if(type==='paid'){
+    const month = NOW;
+    const paid  = members.filter(m=>getPaid(m).includes(month));
+    filename = `${sn}_Paid_Report_${moLabel(month).replace(' ','_')}.csv`;
+    rows.push(['PAID REPORT','','','','','']);
+    rows.push([`Society: ${sn}`,'','','','','']);
+    rows.push([`Month: ${moLabel(month)}`,'','','','','']);
+    rows.push([`Generated: ${dt}`,'','','','','']);
+    rows.push(['','','','','','']);
+    rows.push(['#','Name','Mobile','NIC','House','Amount Paid (LKR)']);
+    paid.forEach((m,i)=>{
+      rows.push([i+1, m.name, m.mobile, m.nic||'—', m.house, getPaidAmountForMonth(m,month)]);
+    });
+    rows.push(['','','','','','']);
+    rows.push(['TOTAL COLLECTED','','','','', paid.reduce((s,m)=>s+getPaidAmountForMonth(m,month),0)]);
+    rows.push([`Members Paid: ${paid.length} of ${members.length}`,'','','','','']);
+    if(!paid.length){ toast('No payments found for this month','er'); return; }
+
+  } else if(type==='due'){
+    const due = members.filter(m=>calcDue(m)>0).sort((a,b)=>calcDue(b)-calcDue(a));
+    filename = `${sn}_Due_Report_${moLabel(NOW).replace(' ','_')}.csv`;
+    rows.push(['DUE REPORT','','','','','','']);
+    rows.push([`Society: ${sn}`,'','','','','','']);
+    rows.push([`As of: ${moLabel(NOW)}`,'','','','','','']);
+    rows.push([`Generated: ${dt}`,'','','','','','']);
+    rows.push(['','','','','','','']);
+    rows.push(['#','Name','Mobile','NIC','House','Joined','Balance Due (LKR)']);
+    due.forEach((m,i)=>{
+      rows.push([i+1, m.name, m.mobile, m.nic||'—', m.house, moLabel(normMonth(m.joined)), calcDue(m)]);
+    });
+    rows.push(['','','','','','','']);
+    rows.push(['TOTAL OUTSTANDING','','','','','', due.reduce((s,m)=>s+calcDue(m),0)]);
+    rows.push([`Members with dues: ${due.length} of ${members.length}`,'','','','','','']);
+    if(!due.length){ toast('No outstanding dues! Everyone is paid up 🎉'); return; }
+
+  } else if(type==='credit'){
+    const cred = members.filter(m=>calcDue(m)<0).sort((a,b)=>calcDue(a)-calcDue(b));
+    filename = `${sn}_Credit_Report_${moLabel(NOW).replace(' ','_')}.csv`;
+    rows.push(['CREDIT / ADVANCE PAYMENT REPORT','','','','','','']);
+    rows.push([`Society: ${sn}`,'','','','','','']);
+    rows.push([`As of: ${moLabel(NOW)}`,'','','','','','']);
+    rows.push([`Generated: ${dt}`,'','','','','','']);
+    rows.push(['','','','','','','']);
+    rows.push(['#','Name','Mobile','NIC','House','Joined','Credit Amount (LKR)']);
+    cred.forEach((m,i)=>{
+      rows.push([i+1, m.name, m.mobile, m.nic||'—', m.house, moLabel(normMonth(m.joined)), Math.abs(calcDue(m))]);
+    });
+    rows.push(['','','','','','','']);
+    rows.push(['TOTAL CREDIT','','','','','', cred.reduce((s,m)=>s+Math.abs(calcDue(m)),0)]);
+    rows.push([`Members with credit: ${cred.length}`,'','','','','','']);
+    if(!cred.length){ toast('No credit members found'); return; }
+
+  } else if(type==='summary'){
+    filename = `${sn}_Full_Summary_${moLabel(NOW).replace(' ','_')}.csv`;
+    rows.push(['FULL MEMBER SUMMARY REPORT','','','','','','','','']);
+    rows.push([`Society: ${sn}`,'','','','','','','','']);
+    rows.push([`As of: ${moLabel(NOW)}`,'','','','','','','','']);
+    rows.push([`Generated: ${dt}`,'','','','','','','','']);
+    rows.push(['','','','','','','','','']);
+    rows.push(['#','Name','Mobile','NIC','House','Joined','Total Charged (LKR)','Total Paid (LKR)','Balance (LKR)','Status']);
+    members.forEach((m,i)=>{
+      const fee = Number(m.fee);
+      const months = allMonths(normMonth(m.joined),NOW).length;
+      const charged = months*fee;
+      const paid = payments.filter(p=>String(p.memberId)===String(m.id)).reduce((s,p)=>s+Number(p.amount),0);
+      const bal  = charged-paid;
+      const status = bal>0?'DUE':bal<0?'CREDIT':'PAID UP';
+      rows.push([i+1, m.name, m.mobile, m.nic||'—', m.house, moLabel(normMonth(m.joined)), charged, paid, Math.abs(bal), status]);
+    });
+    rows.push(['','','','','','','','','','']);
+    const totalCharged = members.reduce((s,m)=>s+allMonths(normMonth(m.joined),NOW).length*Number(m.fee),0);
+    const totalPaid    = payments.reduce((s,p)=>s+Number(p.amount),0);
+    rows.push(['TOTALS','','','','','', totalCharged, totalPaid, Math.abs(totalCharged-totalPaid),'']);
+    rows.push([`Total Members: ${members.length}  |  With Dues: ${members.filter(m=>calcDue(m)>0).length}  |  With Credit: ${members.filter(m=>calcDue(m)<0).length}  |  Paid Up: ${members.filter(m=>calcDue(m)===0).length}`]);
+
+  } else if(type==='custom'){
+    const month = document.getElementById('rpt-custom-month').value;
+    if(!month){toast('Select a month','er');return;}
+    const paid = members.filter(m=>getPaid(m).includes(month));
+    const notPaid = members.filter(m=>{
+      const all=allMonths(normMonth(m.joined),month);
+      return all.includes(month)&&!getPaid(m).includes(month);
+    });
+    filename = `${sn}_Report_${moLabel(month).replace(' ','_')}.csv`;
+    rows.push([`MONTH REPORT — ${moLabel(month)}`,'','','','','']);
+    rows.push([`Society: ${sn}`,'','','','','']);
+    rows.push([`Generated: ${dt}`,'','','','','']);
+    rows.push(['','','','','','']);
+    rows.push([`PAID (${paid.length} members)`,'','','','','']);
+    rows.push(['Name','Mobile','NIC','House','Amount Paid (LKR)','']);
+    paid.forEach(m=>rows.push([m.name, m.mobile, m.nic||'—', m.house, getPaidAmountForMonth(m,month),'']));
+    rows.push(['','','','','','']);
+    rows.push([`NOT PAID (${notPaid.length} members)`,'','','','','']);
+    rows.push(['Name','Mobile','NIC','House','Fee (LKR)','']);
+    notPaid.forEach(m=>rows.push([m.name, m.mobile, m.nic||'—', m.house, m.fee,'']));
+    rows.push(['','','','','','']);
+    rows.push([`Collected: ${lkr(paid.reduce((s,m)=>s+getPaidAmountForMonth(m,month),0))}`,'','','','','']);
+  }
+
+  downloadCSV(rows, filename);
+  toast(`✅ ${filename} downloaded!`);
+}
 
 async function fixPayments(id, name){
   if(!confirm('Fix duplicate/missing payment records for '+name+'?\nThis will merge any duplicate month entries.')) return;
